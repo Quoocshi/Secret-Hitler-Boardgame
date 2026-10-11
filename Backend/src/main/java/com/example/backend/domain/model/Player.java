@@ -23,7 +23,7 @@ public class Player {
     private boolean isHost = false;
 
     @Builder.Default
-    private boolean isConnected = true;
+    private boolean isConnected = false;
 
     @Builder.Default
     private boolean isInvestigated = false;

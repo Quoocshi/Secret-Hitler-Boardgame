@@ -20,6 +20,7 @@ public class GameStateMaskerServiceImpl implements GameStateMaskerService {
 
     @Override
     public PlayerViewDTO maskStateForPlayer(GameRoom room, Player targetPlayer) {
+        synchronized (room) {
 
         // Map public player information
         List<PublicPlayerDTO> publicPlayers = room.getPlayers().stream()
@@ -37,7 +38,7 @@ public class GameStateMaskerServiceImpl implements GameStateMaskerService {
             handCards = new ArrayList<>(room.getHandPolicies());
         } else if (room.getCurrentPhase() == Phase.LEGISLATIVE_CHANCELLOR && targetPlayer.getId().equals(room.getCurrentChancellorId())) {
             handCards = new ArrayList<>(room.getHandPolicies());
-        } else if (room.getCurrentPhase() == Phase.EXECUTIVE_ACTION && targetPlayer.getId().equals(room.getCurrentPresidentId())) {
+        } else if (room.getCurrentPhase() == Phase.EXECUTIVE_ACTION && room.getPendingExecutiveAction() == com.example.backend.domain.enums.ExecutiveAction.POLICY_PEEK && targetPlayer.getId().equals(room.getCurrentPresidentId())) {
             // Give president a peek at the cards if POLICY_PEEK is active
             handCards = new ArrayList<>(room.getHandPolicies());
         }
@@ -69,8 +70,12 @@ public class GameStateMaskerServiceImpl implements GameStateMaskerService {
                 targetPlayer.getRole(),
                 getKnownAllies(room, targetPlayer),
                 handCards,
-                getInvestigatedParty(room, targetPlayer)
+                getInvestigatedParty(room, targetPlayer),
+                room.getStateVersion(),
+                room.isVetoRequestedThisRound(),
+                List.copyOf(room.getInvestigationResults().getOrDefault(targetPlayer.getId(), List.of()))
         );
+        }
     }
 
     // Resolves which players the target player is allowed to know the identities of
@@ -103,10 +108,7 @@ public class GameStateMaskerServiceImpl implements GameStateMaskerService {
 
     // Checks if this player recently investigated someone and returns the result
     private PolicyType getInvestigatedParty(GameRoom room, Player targetPlayer) {
-        // This is a placeholder for the frontend to show the result pop-up.
-        // In a full implementation, you might want to store the "lastInvestigatedResult"
-        // temporarily in the GameRoom or Player object until the President clicks "OK".
-        // For now, it returns null to prevent data leaks.
-        return null;
+        var results = room.getInvestigationResults().getOrDefault(targetPlayer.getId(), List.of());
+        return results.isEmpty() ? null : results.getLast().partyMembership();
     }
 }

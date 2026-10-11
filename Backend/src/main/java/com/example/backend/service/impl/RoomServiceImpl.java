@@ -38,6 +38,7 @@ public class RoomServiceImpl implements RoomService {
 
         room.getPlayers().add(host);
         room.addLog(String.format(GameConstants.LogMessage.ROOM_CREATED, host.getNickname()));
+        room.commitMutation();
         rooms.put(roomCode, room);
 
         return room;
@@ -46,7 +47,8 @@ public class RoomServiceImpl implements RoomService {
     @Override
     public GameRoom joinRoom(String roomCode, String nickname, String sessionToken) {
         validateInputs(nickname, sessionToken);
-        String normalizedCode = roomCode.trim().toUpperCase();
+        if (roomCode == null) throw new GameException("INVALID_PAYLOAD",400,"Mã phòng không hợp lệ.");
+        String normalizedCode = roomCode.trim().toUpperCase(java.util.Locale.ROOT);
 
         GameRoom room = getRoomOrThrow(normalizedCode);
 
@@ -54,26 +56,30 @@ public class RoomServiceImpl implements RoomService {
             Optional<Player> existingPlayerOpt = room.findBySessionToken(sessionToken);
             if (existingPlayerOpt.isPresent()) {
                 Player existingPlayer = existingPlayerOpt.get();
-                existingPlayer.setConnected(true);
                 if (room.getCurrentPhase() == Phase.LOBBY) {
-                    existingPlayer.setNickname(nickname.trim());
+                    boolean duplicate = room.getPlayers().stream().anyMatch(p -> p != existingPlayer && p.getNickname().equalsIgnoreCase(nickname.trim()));
+                    if (duplicate) throw new GameException("NICKNAME_DUPLICATED",409,"Tên này đã có trong phòng.");
+                    if (!existingPlayer.getNickname().equals(nickname.trim())) {
+                        existingPlayer.setNickname(nickname.trim());
+                        room.commitMutation();
+                    }
                 }
                 room.touchActivity();
                 return room;
             }
 
             if (room.getCurrentPhase() != Phase.LOBBY) {
-                throw new GameException(GameConstants.ErrorMessage.ROOM_ALREADY_STARTED);
+                throw new GameException("ROOM_STARTED",409,"Ván đã bắt đầu.");
             }
 
             if (room.getPlayers().size() >= GameConstants.Room.MAX_PLAYERS) {
-                throw new GameException(String.format(GameConstants.ErrorMessage.ROOM_FULL, GameConstants.Room.MAX_PLAYERS));
+                throw new GameException("ROOM_FULL",409,"Phòng đã đủ 10 người.");
             }
 
             boolean duplicateName = room.getPlayers().stream()
                     .anyMatch(p -> p.getNickname().equalsIgnoreCase(nickname.trim()));
             if (duplicateName) {
-                throw new GameException(String.format(GameConstants.ErrorMessage.NICKNAME_DUPLICATED, nickname));
+                throw new GameException("NICKNAME_DUPLICATED",409,"Tên này đã có trong phòng.");
             }
 
             Player newPlayer = Player.builder()
@@ -84,6 +90,7 @@ public class RoomServiceImpl implements RoomService {
 
             room.getPlayers().add(newPlayer);
             room.addLog(String.format(GameConstants.LogMessage.PLAYER_JOINED, newPlayer.getNickname()));
+            room.commitMutation();
             return room;
         }
     }
@@ -98,6 +105,7 @@ public class RoomServiceImpl implements RoomService {
             if (playerOpt.isEmpty()) return;
 
             Player player = playerOpt.get();
+            if (!player.isConnected()) return;
             player.setConnected(false);
             room.touchActivity();
 
@@ -111,6 +119,7 @@ public class RoomServiceImpl implements RoomService {
                             room.addLog(String.format(GameConstants.LogMessage.NEW_HOST, nextHost.getNickname()));
                         });
             }
+            room.commitMutation();
         }
     }
 
@@ -121,7 +130,7 @@ public class RoomServiceImpl implements RoomService {
         }
         GameRoom room = rooms.get(roomCode.trim().toUpperCase());
         if (room == null) {
-            throw new GameException(String.format(GameConstants.ErrorMessage.ROOM_NOT_FOUND, roomCode));
+            throw new GameException("ROOM_NOT_FOUND",404,"Không tìm thấy phòng.");
         }
         return room;
     }

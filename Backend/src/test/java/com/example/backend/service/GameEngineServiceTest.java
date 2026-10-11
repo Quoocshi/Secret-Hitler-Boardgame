@@ -15,6 +15,52 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GameEngineServiceTest {
+    @Test void approvedVetoIncrementsTrackerAndChaosAdvancesOnlyOnce() {
+        var room=createRoomWithPlayers(5);gameEngineService.startGame(room,"token-1");
+        room.setPresidentIndex(0);room.setCurrentPresidentId(room.getPlayers().get(0).getId());
+        room.setCurrentChancellorId(room.getPlayers().get(1).getId());
+        room.setCurrentPhase(Phase.VETO_CONFIRMATION);room.setEnactedFascistPolicies(5);
+        room.setElectionTracker(1);room.getHandPolicies().clear();room.getHandPolicies().addAll(List.of(PolicyType.LIBERAL,PolicyType.FASCIST));
+        gameEngineService.presidentRespondToVeto(room,"token-1",true);
+        assertEquals(2,room.getElectionTracker());assertEquals(room.getPlayers().get(1).getId(),room.getCurrentPresidentId());assertTrue(room.getHandPolicies().isEmpty());
+        room.setPresidentIndex(0);room.setCurrentPresidentId(room.getPlayers().get(0).getId());
+        room.setCurrentPhase(Phase.VETO_CONFIRMATION);room.setElectionTracker(2);
+        room.getHandPolicies().addAll(List.of(PolicyType.LIBERAL,PolicyType.FASCIST));
+        room.getDrawDeck().clear();room.getDrawDeck().addAll(List.of(PolicyType.LIBERAL,PolicyType.FASCIST,PolicyType.LIBERAL));
+        room.setLastElectedPresidentId(room.getPlayers().get(0).getId());room.setLastElectedChancellorId(room.getPlayers().get(1).getId());
+        gameEngineService.presidentRespondToVeto(room,"token-1",true);
+        assertEquals(0,room.getElectionTracker());assertEquals(1,room.getEnactedLiberalPolicies());
+        assertEquals(room.getPlayers().get(1).getId(),room.getCurrentPresidentId());
+        assertNull(room.getLastElectedPresidentId());assertNull(room.getLastElectedChancellorId());assertEquals(ExecutiveAction.NONE,room.getPendingExecutiveAction());
+    }
+    @Test void rejectedVetoCannotBeRequestedAgainAndPreservesHand() {
+        var room=createRoomWithPlayers(5);gameEngineService.startGame(room,"token-1");
+        room.setCurrentPresidentId(room.getPlayers().get(0).getId());room.setCurrentChancellorId(room.getPlayers().get(1).getId());
+        room.setCurrentPhase(Phase.LEGISLATIVE_CHANCELLOR);room.setEnactedFascistPolicies(5);
+        room.getHandPolicies().addAll(List.of(PolicyType.LIBERAL,PolicyType.FASCIST));
+        gameEngineService.chancellorRequestVeto(room,"token-2");gameEngineService.presidentRespondToVeto(room,"token-1",false);
+        assertEquals(Phase.LEGISLATIVE_CHANCELLOR,room.getCurrentPhase());assertTrue(room.isVetoRequestedThisRound());assertEquals(2,room.getHandPolicies().size());
+        assertThrows(GameException.class,()->gameEngineService.chancellorRequestVeto(room,"token-2"));
+    }
+    @Test void endActionCannotBypassPhasePowerOrDeadPresident() {
+        var room=createRoomWithPlayers(5);gameEngineService.startGame(room,"token-1");room.setCurrentPresidentId(room.getPlayers().get(0).getId());
+        assertThrows(GameException.class,()->gameEngineService.endExecutiveAction(room,"token-1"));
+        room.setCurrentPhase(Phase.EXECUTIVE_ACTION);
+        for(var power:List.of(ExecutiveAction.EXECUTION,ExecutiveAction.SPECIAL_ELECTION,ExecutiveAction.INVESTIGATE_LOYALTY)){
+            room.setPendingExecutiveAction(power);assertThrows(GameException.class,()->gameEngineService.endExecutiveAction(room,"token-1"));
+        }
+        room.setPendingExecutiveAction(ExecutiveAction.POLICY_PEEK);room.getPlayers().getFirst().setAlive(false);
+        assertThrows(GameException.class,()->gameEngineService.endExecutiveAction(room,"token-1"));
+    }
+    @Test void chaosFascistPolicyNeverGrantsPowerOrSkipsAnExtraPresident() {
+        var room=createRoomWithPlayers(5);gameEngineService.startGame(room,"token-1");
+        room.setPresidentIndex(0);room.setCurrentPresidentId(room.getPlayers().get(0).getId());
+        room.setEnactedFascistPolicies(1);room.setElectionTracker(2);
+        room.getDrawDeck().clear();room.getDrawDeck().addAll(List.of(PolicyType.FASCIST,PolicyType.LIBERAL,PolicyType.LIBERAL,PolicyType.FASCIST));
+        gameEngineService.nominateChancellor(room,"token-1",room.getPlayers().get(1).getId());
+        for(var p:room.getPlayers())gameEngineService.castVote(room,p.getSessionToken(),Vote.NEIN);
+        assertEquals(room.getPlayers().get(1).getId(),room.getCurrentPresidentId());assertEquals(ExecutiveAction.NONE,room.getPendingExecutiveAction());
+    }
 
     private RoomService roomService;
     private GameEngineService gameEngineService;

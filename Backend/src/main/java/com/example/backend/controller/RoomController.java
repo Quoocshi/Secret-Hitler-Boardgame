@@ -1,61 +1,29 @@
 package com.example.backend.controller;
-
 import com.example.backend.domain.model.GameRoom;
-import com.example.backend.domain.model.Player;
 import com.example.backend.dto.PlayerViewDTO;
-import com.example.backend.service.GameStateMaskerService;
-import com.example.backend.service.RoomService;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import com.example.backend.exception.GameException;
+import com.example.backend.service.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
-
-@Tag(name = "Room Management", description = "APIs for creating rooms, joining rooms, and retrieving game state")
 @RestController
 @RequestMapping("/api/rooms")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins="${app.allowed-origins:http://localhost:3000}")
 public class RoomController {
-
-    private final RoomService roomService;
-    private final GameStateMaskerService maskerService;
-
-    public RoomController(RoomService roomService, GameStateMaskerService maskerService) {
-        this.roomService = roomService;
-        this.maskerService = maskerService;
-    }
-
-    public record CreateRoomRequest(@NotBlank String nickname, @NotBlank String sessionToken) {}
-    public record JoinRoomRequest(@NotBlank String roomCode, @NotBlank String nickname, @NotBlank String sessionToken) {}
-    public record RoomResponse(String roomCode, PlayerViewDTO gameState) {}
-
-    @PostMapping("/create")
-    public ResponseEntity<RoomResponse> createRoom(@Valid @RequestBody CreateRoomRequest request) {
-        GameRoom room = roomService.createRoom(request.nickname(), request.sessionToken());
-        Player host = room.getPlayerOrThrow(room.getCurrentPresidentId() == null ? room.getPlayers().get(0).getId() : room.getCurrentPresidentId());
-
-        PlayerViewDTO maskedState = maskerService.maskStateForPlayer(room, host);
-        return ResponseEntity.ok(new RoomResponse(room.getRoomCode(), maskedState));
-    }
-
-    @PostMapping("/join")
-    public ResponseEntity<RoomResponse> joinRoom(@Valid @RequestBody JoinRoomRequest request) {
-        GameRoom room = roomService.joinRoom(request.roomCode(), request.nickname(), request.sessionToken());
-        Player joinedPlayer = room.findBySessionToken(request.sessionToken()).orElseThrow();
-
-        PlayerViewDTO maskedState = maskerService.maskStateForPlayer(room, joinedPlayer);
-        return ResponseEntity.ok(new RoomResponse(room.getRoomCode(), maskedState));
-    }
-
-    @GetMapping("/{roomCode}/state")
-    public ResponseEntity<PlayerViewDTO> getRoomState(
-            @PathVariable String roomCode,
-            @RequestHeader("X-Session-Token") String sessionToken) {
-
-        GameRoom room = roomService.getRoomOrThrow(roomCode);
-        Player player = room.findBySessionToken(sessionToken)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid session token"));
-
-        return ResponseEntity.ok(maskerService.maskStateForPlayer(room, player));
-    }
+ private final RoomService rooms; private final GameStateMaskerService masker; private final RoomStatePublisher publisher;
+ public RoomController(RoomService rooms,GameStateMaskerService masker,RoomStatePublisher publisher) {this.rooms=rooms;this.masker=masker;this.publisher=publisher;}
+ public record CreateRoomRequest(@NotBlank String nickname,@NotBlank String sessionToken) {}
+ public record JoinRoomRequest(@NotBlank String roomCode,@NotBlank String nickname,@NotBlank String sessionToken) {}
+ public record RoomResponse(String roomCode,PlayerViewDTO gameState) {}
+ private RoomResponse snapshot(GameRoom room,String token) {var player=room.findBySessionToken(token).orElseThrow(()->new GameException("INVALID_SESSION",401,"Phiên chơi không hợp lệ."));return new RoomResponse(room.getRoomCode(),masker.maskStateForPlayer(room,player));}
+ @PostMapping("/create") public ResponseEntity<RoomResponse> create(@Valid @RequestBody CreateRoomRequest request) {
+  var room=rooms.createRoom(request.nickname(),request.sessionToken()); synchronized(room){publisher.publish(room);return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(snapshot(room,request.sessionToken()));}
+ }
+ @PostMapping("/join") public ResponseEntity<RoomResponse> join(@Valid @RequestBody JoinRoomRequest request) {
+  var room=rooms.joinRoom(request.roomCode(),request.nickname(),request.sessionToken()); synchronized(room){publisher.publish(room);return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(snapshot(room,request.sessionToken()));}
+ }
+ @GetMapping("/{roomCode}/state") public ResponseEntity<PlayerViewDTO> state(@PathVariable String roomCode,@RequestHeader("X-Session-Token") String token) {
+  var room=rooms.getRoomOrThrow(roomCode); synchronized(room){return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(snapshot(room,token).gameState());}
+ }
 }

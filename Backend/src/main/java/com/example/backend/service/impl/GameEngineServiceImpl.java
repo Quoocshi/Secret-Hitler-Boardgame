@@ -148,6 +148,7 @@ public class GameEngineServiceImpl implements GameEngineService {
             room.setNominatedChancellorId(null);
             room.setVetoRequestedThisRound(false);
             room.setPendingExecutiveAction(ExecutiveAction.NONE);
+            room.getHandPolicies().clear();
             room.setCurrentPhase(Phase.NOMINATION);
 
             room.addLog(String.format(GameConstants.LogMessage.NEXT_PRESIDENT, nextPresident.getNickname()));
@@ -261,7 +262,9 @@ public class GameEngineServiceImpl implements GameEngineService {
                 room.getDiscardDeck().addAll(room.getHandPolicies());
                 room.getHandPolicies().clear();
                 room.addLog(String.format(GameConstants.LogMessage.VETO_APPROVED, president.getNickname()));
-                advanceToNextPresident(room);
+                room.setElectionTracker(room.getElectionTracker() + 1);
+                if (room.getElectionTracker() >= GameConstants.Rule.MAX_ELECTION_TRACKER) enactChaosPolicy(room);
+                if (room.getCurrentPhase() != Phase.GAME_OVER) advanceToNextPresident(room);
             } else {
                 // Veto rejected: Chancellor must enact one
                 room.setCurrentPhase(Phase.LEGISLATIVE_CHANCELLOR);
@@ -311,7 +314,8 @@ public class GameEngineServiceImpl implements GameEngineService {
             Player president = room.getPlayerOrThrow(room.getCurrentPresidentId());
 
             room.addLog(String.format(GameConstants.LogMessage.PLAYER_INVESTIGATED, president.getNickname(), target.getNickname()));
-            // The frontend masked state will reveal target.getRole().getPartyMembership() to the President only
+            room.getInvestigationResults().computeIfAbsent(president.getId(), key -> new ArrayList<>())
+                    .add(new com.example.backend.dto.InvestigationResultDTO(java.util.UUID.randomUUID().toString(), target.getId(), target.getRole().getPartyMembership()));
 
             advanceToNextPresident(room);
         }
@@ -345,6 +349,7 @@ public class GameEngineServiceImpl implements GameEngineService {
     @Override
     public void endExecutiveAction(GameRoom room, String sessionToken) {
         synchronized (room) {
+            validateExecutiveAction(room, sessionToken, ExecutiveAction.POLICY_PEEK);
             Player president = getPlayerBySessionOrThrow(room, sessionToken);
             if (!president.getId().equals(room.getCurrentPresidentId())) {
                 throw new GameException(GameConstants.ErrorMessage.ACTION_NOT_PRESIDENT);
@@ -359,6 +364,11 @@ public class GameEngineServiceImpl implements GameEngineService {
     }
 
     private void executeEnactment(GameRoom room, PolicyType enactedPolicy) {
+        executeEnactment(room, enactedPolicy, false);
+    }
+
+    private void executeEnactment(GameRoom room, PolicyType enactedPolicy, boolean chaos) {
+        room.getHandPolicies().clear();
         if (enactedPolicy == PolicyType.LIBERAL) {
             room.setEnactedLiberalPolicies(room.getEnactedLiberalPolicies() + 1);
         } else {
@@ -386,6 +396,8 @@ public class GameEngineServiceImpl implements GameEngineService {
             return;
         }
 
+        // Chaos cannot trigger powers or advance twice; the caller advances after the win check.
+        if (chaos) return;
         // Determine Executive Action if it was a Fascist Policy
         if (enactedPolicy == PolicyType.FASCIST) {
             ExecutiveAction nextAction = determineExecutiveAction(room.getPlayers().size(), room.getEnactedFascistPolicies());
@@ -433,6 +445,7 @@ public class GameEngineServiceImpl implements GameEngineService {
         }
 
         Player president = getPlayerBySessionOrThrow(room, sessionToken);
+        if (!president.isAlive()) throw new GameException("INVALID_ACTION",400,"Người đã bị loại không thể thực hiện quyền lực.");
         if (!president.getId().equals(room.getCurrentPresidentId())) {
             throw new GameException(GameConstants.ErrorMessage.ACTION_NOT_PRESIDENT);
         }
@@ -532,7 +545,7 @@ public class GameEngineServiceImpl implements GameEngineService {
         room.setLastElectedPresidentId(null);
         room.setLastElectedChancellorId(null);
 
-        executeEnactment(room, topPolicy);
+        executeEnactment(room, topPolicy, true);
     }
 
     private void assignRoles(List<Player> players) {
@@ -590,6 +603,7 @@ public class GameEngineServiceImpl implements GameEngineService {
         room.setPendingExecutiveAction(ExecutiveAction.NONE);
         room.setWinner(Winner.NONE);
         room.setWinReason(null);
+        room.getInvestigationResults().clear();
     }
 
     private Player getPlayerBySessionOrThrow(GameRoom room, String sessionToken) {
