@@ -1,2 +1,5 @@
 .tools/
 *.log
+
+.vercel
+.env*
