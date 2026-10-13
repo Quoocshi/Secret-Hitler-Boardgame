@@ -45,8 +45,5 @@ public record PlayerViewDTO(
         List<PolicyType> handCards,
 
         // The result of an investigate loyalty action (only populated if the player is the investigating President)
-        PolicyType investigatedPartyMembership,
-        long stateVersion,
-        boolean vetoRequestedThisRound,
-        List<InvestigationResultDTO> investigationResults
+        PolicyType investigatedPartyMembership
 ) {}

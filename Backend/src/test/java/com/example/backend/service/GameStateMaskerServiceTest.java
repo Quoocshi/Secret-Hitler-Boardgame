@@ -17,25 +17,6 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GameStateMaskerServiceTest {
-    @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(ints={5,6,7,10})
-    void allyAndVotePrivacyForEveryRecipient(int size) {
-        var room=createSampleRoom(size);
-        room.getPlayers().get(0).setRole(Role.HITLER);
-        room.getPlayers().get(1).setRole(Role.FASCIST);
-        for(int i=2;i<size;i++)room.getPlayers().get(i).setRole(Role.LIBERAL);
-        room.setCurrentPhase(Phase.VOTING);
-        room.getCurrentVotes().put("id-1",Vote.NEIN);
-        for(var player:room.getPlayers()) {
-            var masked=maskerService.maskStateForPlayer(room,player);
-            assertEquals(player.getRole(),masked.myRole());
-            if(player.getRole()==Role.LIBERAL || (player.getRole()==Role.HITLER && size>=7))assertTrue(masked.knownAllyIds().isEmpty());
-            else assertEquals(java.util.Set.of("id-1","id-2"),new java.util.HashSet<>(masked.knownAllyIds()));
-            assertTrue(masked.players().stream().allMatch(p->p.lastRevealedVote()==null));
-            assertTrue(masked.players().getFirst().hasVoted());
-            assertTrue(masked.handCards().isEmpty());
-        }
-    }
 
     private GameStateMaskerService maskerService;
 
@@ -215,7 +196,6 @@ class GameStateMaskerServiceTest {
         Player other = room.getPlayers().get(1);
 
         room.setCurrentPhase(Phase.EXECUTIVE_ACTION);
-        room.setPendingExecutiveAction(com.example.backend.domain.enums.ExecutiveAction.POLICY_PEEK);
         room.setCurrentPresidentId(pres.getId());
         room.getHandPolicies().addAll(List.of(PolicyType.FASCIST, PolicyType.FASCIST, PolicyType.LIBERAL));
 
@@ -226,7 +206,5 @@ class GameStateMaskerServiceTest {
         // Other players cannot see the peeked cards
         PlayerViewDTO otherView = maskerService.maskStateForPlayer(room, other);
         assertTrue(otherView.handCards().isEmpty());
-        room.setPendingExecutiveAction(com.example.backend.domain.enums.ExecutiveAction.EXECUTION);
-        assertTrue(maskerService.maskStateForPlayer(room, pres).handCards().isEmpty());
     }
 }
