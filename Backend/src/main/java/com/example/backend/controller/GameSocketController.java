@@ -169,4 +169,25 @@ public class GameSocketController {
         gameEngineService.endExecutiveAction(room, sessionToken);
         broadcastMaskedState(room);
     }
+
+    @MessageMapping("/room/{roomCode}/kick")
+    public void kickPlayer(
+            @DestinationVariable String roomCode,
+            @Header("X-Session-Token") String sessionToken,
+            @Payload TargetActionPayload payload) {
+        // Only the host can kick (verified in RoomService)
+        roomService.kickPlayer(roomCode, sessionToken, payload.targetPlayerId());
+        GameRoom room = roomService.getRoomOrThrow(roomCode);
+        broadcastMaskedState(room);
+    }
+
+    @MessageMapping("/room/{roomCode}/leave")
+    public void leaveRoom(
+            @DestinationVariable String roomCode,
+            @Header("X-Session-Token") String sessionToken) {
+        // Any player can choose to leave the room
+        roomService.leaveRoom(roomCode, sessionToken);
+        GameRoom room = roomService.getRoomOrThrow(roomCode);
+        broadcastMaskedState(room);
+    }
 }

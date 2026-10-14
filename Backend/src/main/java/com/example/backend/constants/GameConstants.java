@@ -64,6 +64,9 @@ public final class GameConstants {
         public static final String TARGET_DEAD_OR_INVALID = "Mục tiêu không hợp lệ hoặc đã bị loại!";
         public static final String TARGET_ALREADY_INVESTIGATED = "Người chơi này đã bị điều tra trước đó!";
         public static final String CANNOT_TARGET_SELF = "Không thể chọn chính mình!";
+
+        public static final String CANNOT_KICK_SELF = "Không thể tự kick chính mình!";
+        public static final String PLAYER_NOT_FOUND = "Không tìm thấy người chơi!";
     }
 
     public static final class LogMessage {
@@ -99,5 +102,11 @@ public final class GameConstants {
         public static final String PLAYER_INVESTIGATED = "Tổng thống %s đã điều tra danh tính của %s.";
         public static final String SPECIAL_ELECTION_CALLED = "Tổng thống %s đã chỉ định %s làm Tổng thống tiếp theo (Bầu cử đặc biệt).";
         public static final String POLICY_PEEK_USED = "Tổng thống %s đã xem trước 3 lá chính sách tiếp theo.";
+
+        public static final String PLAYER_KICKED = "Chủ phòng %s đã kick %s ra khỏi phòng.";
+        public static final String PLAYER_LEFT = "%s đã rời khỏi phòng.";
+        public static final String GAME_ABORTED = "KẾT THÚC SỚM: Số lượng người chơi hiện tại (%d) ít hơn mức tối thiểu (%d).";
     }
+
+
 }
