@@ -5,15 +5,21 @@ import com.example.backend.domain.model.GameRoom;
 import com.example.backend.domain.model.Player;
 import com.example.backend.dto.PlayerViewDTO;
 import com.example.backend.dto.WebRtcSignalMessage;
+import com.example.backend.exception.GameException;
 import com.example.backend.service.GameEngineService;
 import com.example.backend.service.GameStateMaskerService;
 import com.example.backend.service.RoomService;
+import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
+
+import java.time.Instant;
 
 @Controller
 public class GameSocketController {
@@ -34,6 +40,21 @@ public class GameSocketController {
         this.messagingTemplate = messagingTemplate;
     }
 
+    // Prevents STOMP connection drops on rule violations by routing errors to a private error queue
+    public record SocketErrorPayload(String error, String message, Instant timestamp) {}
+
+    @MessageExceptionHandler(Exception.class)
+    public void handleSocketException(Exception ex, Message<?> message) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
+        String sessionToken = accessor.getFirstNativeHeader("X-Session-Token");
+
+        if (sessionToken != null) {
+            String errorType = (ex instanceof GameException) ? "GAME_RULE_VIOLATION" : "INVALID_REQUEST";
+            SocketErrorPayload errorPayload = new SocketErrorPayload(errorType, ex.getMessage(), Instant.now());
+            messagingTemplate.convertAndSend("/queue/errors/" + sessionToken, errorPayload);
+        }
+    }
+
     @MessageMapping("/room/{roomCode}/signal")
     public void handleWebRtcSignal(
             @DestinationVariable String roomCode,
@@ -48,6 +69,16 @@ public class GameSocketController {
     public void startGame(@DestinationVariable String roomCode, @Header("simpSessionId") String wsSessionId, @Header("X-Session-Token") String sessionToken) {
         GameRoom room = roomService.getRoomOrThrow(roomCode);
         gameEngineService.startGame(room, sessionToken);
+        broadcastMaskedState(room);
+    }
+
+    @MessageMapping("/room/{roomCode}/restart")
+    public void restartGame(
+            @DestinationVariable String roomCode,
+            @Header("X-Session-Token") String sessionToken) {
+        // Resets the finished game back to the lobby phase for a rematch
+        GameRoom room = roomService.getRoomOrThrow(roomCode);
+        gameEngineService.resetToLobby(room, sessionToken);
         broadcastMaskedState(room);
     }
 

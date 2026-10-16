@@ -1,5 +1,6 @@
 package com.example.backend.dto;
 
+import com.example.backend.domain.enums.Role;
 import com.example.backend.domain.enums.Vote;
 import com.example.backend.domain.model.Player;
 
@@ -12,9 +13,10 @@ public record PublicPlayerDTO(
         boolean isConnected,
         boolean isInvestigated,
         boolean hasVoted,
-        Vote lastRevealedVote // Only populated after a vote concludes; null otherwise
+        Vote lastRevealedVote, // Only populated after a vote concludes; null otherwise
+        Role revealedRole      // Strictly null during active game; populated for everyone only at GAME_OVER
 ) {
-    public static PublicPlayerDTO from(Player player, boolean hasVoted, Vote lastRevealedVote) {
+    public static PublicPlayerDTO from(Player player, boolean hasVoted, Vote lastRevealedVote, Role revealedRole) {
         return new PublicPlayerDTO(
                 player.getId(),
                 player.getNickname(),
@@ -23,7 +25,8 @@ public record PublicPlayerDTO(
                 player.isConnected(),
                 player.isInvestigated(),
                 hasVoted,
-                lastRevealedVote
+                lastRevealedVote,
+                revealedRole
         );
     }
 }

@@ -42,6 +42,11 @@ public class GameRoom {
     private boolean vetoRequestedThisRound = false;
 
     private ExecutiveAction pendingExecutiveAction = ExecutiveAction.NONE;
+
+    // Stores the result of Investigate Loyalty until the President ends their turn
+    private String lastInvestigatedPlayerId;
+    private PolicyType lastInvestigatedPartyResult;
+
     private Winner winner = Winner.NONE;
     private String winReason;
 

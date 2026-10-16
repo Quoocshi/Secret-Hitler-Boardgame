@@ -18,7 +18,6 @@ public class GameEngineServiceImpl implements GameEngineService {
 
     private final SecureRandom random = new SecureRandom();
 
-    // Start of previously implemented methods (startGame, nominateChancellor, etc. remain exactly the same)
     @Override
     public void startGame(GameRoom room, String hostSessionToken) {
         synchronized (room) {
@@ -48,6 +47,31 @@ public class GameEngineServiceImpl implements GameEngineService {
 
             room.setCurrentPhase(Phase.NOMINATION);
             room.addLog(String.format(GameConstants.LogMessage.GAME_STARTED, playerCount, firstPresident.getNickname()));
+        }
+    }
+
+    @Override
+    public void resetToLobby(GameRoom room, String hostSessionToken) {
+        synchronized (room) {
+            if (room.getCurrentPhase() != Phase.GAME_OVER) {
+                throw new GameException(GameConstants.ErrorMessage.GAME_NOT_OVER);
+            }
+
+            Player requester = getPlayerBySessionOrThrow(room, hostSessionToken);
+            if (!requester.isHost()) {
+                throw new GameException(GameConstants.ErrorMessage.ACTION_NOT_HOST);
+            }
+
+            resetRoomForNewGame(room);
+            for (Player p : room.getPlayers()) {
+                p.setRole(null);
+                p.setAlive(true);
+                p.setInvestigated(false);
+            }
+            room.getDrawDeck().clear();
+            room.getDiscardDeck().clear();
+            room.setCurrentPhase(Phase.LOBBY);
+            room.addLog(String.format(GameConstants.LogMessage.ROOM_RESET_TO_LOBBY, requester.getNickname()));
         }
     }
 
@@ -148,6 +172,9 @@ public class GameEngineServiceImpl implements GameEngineService {
             room.setNominatedChancellorId(null);
             room.setVetoRequestedThisRound(false);
             room.setPendingExecutiveAction(ExecutiveAction.NONE);
+            room.setLastInvestigatedPlayerId(null);
+            room.setLastInvestigatedPartyResult(null);
+            room.getHandPolicies().clear();
             room.setCurrentPhase(Phase.NOMINATION);
 
             room.addLog(String.format(GameConstants.LogMessage.NEXT_PRESIDENT, nextPresident.getNickname()));
@@ -182,7 +209,6 @@ public class GameEngineServiceImpl implements GameEngineService {
                 throw new GameException(GameConstants.ErrorMessage.CARD_INDEX_OUT_OF_BOUNDS);
             }
 
-            // Discard the selected policy
             PolicyType discarded = room.getHandPolicies().remove(policyIndex);
             room.getDiscardDeck().add(discarded);
 
@@ -207,10 +233,7 @@ public class GameEngineServiceImpl implements GameEngineService {
                 throw new GameException(GameConstants.ErrorMessage.CARD_INDEX_OUT_OF_BOUNDS);
             }
 
-            // Enact the selected policy
             PolicyType enactedPolicy = room.getHandPolicies().remove(policyIndex);
-
-            // The remaining policy goes to discard
             PolicyType discarded = room.getHandPolicies().removeFirst();
             room.getDiscardDeck().add(discarded);
 
@@ -257,13 +280,11 @@ public class GameEngineServiceImpl implements GameEngineService {
             }
 
             if (approve) {
-                // Veto approved: Both cards are discarded, round ends
                 room.getDiscardDeck().addAll(room.getHandPolicies());
                 room.getHandPolicies().clear();
                 room.addLog(String.format(GameConstants.LogMessage.VETO_APPROVED, president.getNickname()));
                 advanceToNextPresident(room);
             } else {
-                // Veto rejected: Chancellor must enact one
                 room.setCurrentPhase(Phase.LEGISLATIVE_CHANCELLOR);
                 room.addLog(String.format(GameConstants.LogMessage.VETO_REJECTED, president.getNickname()));
             }
@@ -282,7 +303,6 @@ public class GameEngineServiceImpl implements GameEngineService {
             Player president = room.getPlayerOrThrow(room.getCurrentPresidentId());
             room.addLog(String.format(GameConstants.LogMessage.PLAYER_EXECUTED, president.getNickname(), target.getNickname()));
 
-            // If Hitler is executed, Liberals win immediately
             if (target.getRole() == Role.HITLER) {
                 room.setWinner(Winner.LIBERAL);
                 room.setWinReason(String.format(GameConstants.LogMessage.WIN_REASON_HITLER_DEAD, target.getNickname()));
@@ -300,6 +320,11 @@ public class GameEngineServiceImpl implements GameEngineService {
         synchronized (room) {
             validateExecutiveAction(room, sessionToken, ExecutiveAction.INVESTIGATE_LOYALTY);
 
+            // Prevent investigating multiple players in the same turn
+            if (room.getLastInvestigatedPlayerId() != null) {
+                throw new GameException(GameConstants.ErrorMessage.INVALID_EXECUTIVE_ACTION);
+            }
+
             Player target = room.getPlayerOrThrow(targetPlayerId);
             validateTarget(room, target, room.getCurrentPresidentId());
 
@@ -308,12 +333,12 @@ public class GameEngineServiceImpl implements GameEngineService {
             }
 
             target.setInvestigated(true);
+            room.setLastInvestigatedPlayerId(target.getId());
+            room.setLastInvestigatedPartyResult(target.getRole().getPartyMembership());
+
             Player president = room.getPlayerOrThrow(room.getCurrentPresidentId());
-
             room.addLog(String.format(GameConstants.LogMessage.PLAYER_INVESTIGATED, president.getNickname(), target.getNickname()));
-            // The frontend masked state will reveal target.getRole().getPartyMembership() to the President only
-
-            advanceToNextPresident(room);
+            // Remains in EXECUTIVE_ACTION until President calls endExecutiveAction after viewing the party membership
         }
     }
 
@@ -327,15 +352,14 @@ public class GameEngineServiceImpl implements GameEngineService {
 
             Player president = room.getPlayerOrThrow(room.getCurrentPresidentId());
 
-            // Save the current index to return to it after the special election
             room.setReturnToPresidentIndexAfterSpecial(room.getPresidentIndex());
 
-            // Set the new president
             int targetIndex = room.getPlayers().indexOf(target);
             room.setPresidentIndex(targetIndex);
             room.setCurrentPresidentId(target.getId());
             room.setCurrentChancellorId(null);
             room.setNominatedChancellorId(null);
+            room.setPendingExecutiveAction(ExecutiveAction.NONE);
             room.setCurrentPhase(Phase.NOMINATION);
 
             room.addLog(String.format(GameConstants.LogMessage.SPECIAL_ELECTION_CALLED, president.getNickname(), target.getNickname()));
@@ -345,12 +369,21 @@ public class GameEngineServiceImpl implements GameEngineService {
     @Override
     public void endExecutiveAction(GameRoom room, String sessionToken) {
         synchronized (room) {
+            if (room.getCurrentPhase() != Phase.EXECUTIVE_ACTION) {
+                throw new GameException(GameConstants.ErrorMessage.PHASE_NOT_EXECUTIVE_ACTION);
+            }
+
             Player president = getPlayerBySessionOrThrow(room, sessionToken);
             if (!president.getId().equals(room.getCurrentPresidentId())) {
                 throw new GameException(GameConstants.ErrorMessage.ACTION_NOT_PRESIDENT);
             }
 
-            if (room.getCurrentPhase() == Phase.EXECUTIVE_ACTION && room.getPendingExecutiveAction() == ExecutiveAction.POLICY_PEEK) {
+            if (room.getPendingExecutiveAction() == ExecutiveAction.INVESTIGATE_LOYALTY
+                    && room.getLastInvestigatedPlayerId() == null) {
+                throw new GameException(GameConstants.ErrorMessage.INVESTIGATION_NOT_COMPLETED);
+            }
+
+            if (room.getPendingExecutiveAction() == ExecutiveAction.POLICY_PEEK) {
                 room.addLog(String.format(GameConstants.LogMessage.POLICY_PEEK_USED, president.getNickname()));
             }
 
@@ -369,7 +402,6 @@ public class GameEngineServiceImpl implements GameEngineService {
                 room.getEnactedLiberalPolicies(), GameConstants.Rule.LIBERAL_POLICIES_TO_WIN,
                 room.getEnactedFascistPolicies(), GameConstants.Rule.FASCIST_POLICIES_TO_WIN));
 
-        // Check Win Conditions
         if (room.getEnactedLiberalPolicies() >= GameConstants.Rule.LIBERAL_POLICIES_TO_WIN) {
             room.setWinner(Winner.LIBERAL);
             room.setWinReason(String.format(GameConstants.LogMessage.WIN_REASON_LIBERAL, GameConstants.Rule.LIBERAL_POLICIES_TO_WIN));
@@ -386,14 +418,12 @@ public class GameEngineServiceImpl implements GameEngineService {
             return;
         }
 
-        // Determine Executive Action if it was a Fascist Policy
         if (enactedPolicy == PolicyType.FASCIST) {
             ExecutiveAction nextAction = determineExecutiveAction(room.getPlayers().size(), room.getEnactedFascistPolicies());
             if (nextAction != ExecutiveAction.NONE) {
                 room.setPendingExecutiveAction(nextAction);
                 room.setCurrentPhase(Phase.EXECUTIVE_ACTION);
 
-                // If it's policy peek, draw 3 cards to show the president (without removing them from deck)
                 if (nextAction == ExecutiveAction.POLICY_PEEK) {
                     ensureDrawDeckHasCards(room, 3);
                     room.getHandPolicies().clear();
@@ -451,7 +481,6 @@ public class GameEngineServiceImpl implements GameEngineService {
         }
     }
 
-    // Remaining helper methods (evaluateElectionResults, enactChaosPolicy, etc.) go here...
     private void evaluateElectionResults(GameRoom room) {
         room.getLastRevealedVotes().clear();
         room.getLastRevealedVotes().putAll(room.getCurrentVotes());
@@ -482,7 +511,6 @@ public class GameEngineServiceImpl implements GameEngineService {
 
         room.addLog(String.format(GameConstants.LogMessage.ELECTION_SUCCESS, jaCount, neinCount, chancellor.getNickname()));
 
-        // Check Hitler Zone win condition
         if (room.getEnactedFascistPolicies() >= GameConstants.Rule.FASCIST_POLICIES_FOR_HITLER_ZONE
                 && chancellor.getRole() == Role.HITLER) {
             room.setWinner(Winner.FASCIST);
@@ -528,11 +556,33 @@ public class GameEngineServiceImpl implements GameEngineService {
         PolicyType topPolicy = room.getDrawDeck().removeFirst();
         room.setElectionTracker(0);
 
-        // Remove term limits in chaos mode
         room.setLastElectedPresidentId(null);
         room.setLastElectedChancellorId(null);
 
-        executeEnactment(room, topPolicy);
+        if (topPolicy == PolicyType.LIBERAL) {
+            room.setEnactedLiberalPolicies(room.getEnactedLiberalPolicies() + 1);
+            room.addLog(String.format(GameConstants.LogMessage.CHAOS_TRIGGERED, GameConstants.Rule.MAX_ELECTION_TRACKER,
+                    PolicyType.LIBERAL.name(), room.getEnactedLiberalPolicies(), GameConstants.Rule.LIBERAL_POLICIES_TO_WIN));
+
+            if (room.getEnactedLiberalPolicies() >= GameConstants.Rule.LIBERAL_POLICIES_TO_WIN) {
+                room.setWinner(Winner.LIBERAL);
+                room.setWinReason(String.format(GameConstants.LogMessage.WIN_REASON_LIBERAL, GameConstants.Rule.LIBERAL_POLICIES_TO_WIN));
+                room.setCurrentPhase(Phase.GAME_OVER);
+                room.addLog(String.format(GameConstants.LogMessage.GAME_OVER, Winner.LIBERAL.name(), room.getWinReason()));
+            }
+        } else {
+            room.setEnactedFascistPolicies(room.getEnactedFascistPolicies() + 1);
+            room.addLog(String.format(GameConstants.LogMessage.CHAOS_TRIGGERED, GameConstants.Rule.MAX_ELECTION_TRACKER,
+                    PolicyType.FASCIST.name(), room.getEnactedFascistPolicies(), GameConstants.Rule.FASCIST_POLICIES_TO_WIN));
+
+            if (room.getEnactedFascistPolicies() >= GameConstants.Rule.FASCIST_POLICIES_TO_WIN) {
+                room.setWinner(Winner.FASCIST);
+                room.setWinReason(String.format(GameConstants.LogMessage.WIN_REASON_FASCIST, GameConstants.Rule.FASCIST_POLICIES_TO_WIN));
+                room.setCurrentPhase(Phase.GAME_OVER);
+                room.addLog(String.format(GameConstants.LogMessage.GAME_OVER, Winner.FASCIST.name(), room.getWinReason()));
+            }
+        }
+        ensureDrawDeckHasCards(room, GameConstants.Deck.PRESIDENT_DRAW_COUNT);
     }
 
     private void assignRoles(List<Player> players) {
@@ -588,6 +638,8 @@ public class GameEngineServiceImpl implements GameEngineService {
         room.setEnactedFascistPolicies(0);
         room.setVetoRequestedThisRound(false);
         room.setPendingExecutiveAction(ExecutiveAction.NONE);
+        room.setLastInvestigatedPlayerId(null);
+        room.setLastInvestigatedPartyResult(null);
         room.setWinner(Winner.NONE);
         room.setWinReason(null);
     }
