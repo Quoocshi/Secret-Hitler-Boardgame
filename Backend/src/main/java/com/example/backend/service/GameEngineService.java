@@ -11,6 +11,9 @@ public interface GameEngineService {
     // Initializes role assignments, resets trackers, shuffles policy deck, and picks the first president
     void startGame(GameRoom room, String hostSessionToken);
 
+    // Resets a finished game room back to the LOBBY phase so players can play a rematch
+    void resetToLobby(GameRoom room, String hostSessionToken);
+
     // Current president nominates a player as Chancellor candidate and transitions game to voting phase
     void nominateChancellor(GameRoom room, String presidentSessionToken, String nomineePlayerId);
 
@@ -47,6 +50,6 @@ public interface GameEngineService {
     // President appoints the next president out of turn while preserving standard turn order afterward
     void callSpecialElection(GameRoom room, String sessionToken, String targetPlayerId);
 
-    // Concludes non-targeting executive actions such as Policy Peek and rotates to the next president
+    // Concludes Policy Peek or Loyalty Investigation after the President views the secret result
     void endExecutiveAction(GameRoom room, String sessionToken);
 }

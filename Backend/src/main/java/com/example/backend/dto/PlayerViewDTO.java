@@ -8,6 +8,7 @@ import com.example.backend.domain.enums.Winner;
 
 import java.util.List;
 
+// The masked, zero-trust game state uniquely tailored for a specific player's sessionToken
 public record PlayerViewDTO(
         String roomCode,
         Phase currentPhase,
@@ -25,25 +26,24 @@ public record PlayerViewDTO(
         String nominatedChancellorId,
         String lastElectedPresidentId,
         String lastElectedChancellorId,
+        List<String> eligibleChancellorIds, // Valid candidate IDs for Chancellor during NOMINATION phase
 
         // Executive Actions & End Game
         ExecutiveAction pendingExecutiveAction,
         Winner winner,
         String winReason,
 
-        // Public Players Data (NO secret roles exposed here)
+        // Public Players Data (Roles are masked unless currentPhase == GAME_OVER)
         List<PublicPlayerDTO> players,
         List<String> gameLogs,
 
+        // Private Data (Only visible to the receiver)
         String myPlayerId,
         Role myRole,
-
-        // Teammates or Investigation results (e.g., a Fascist seeing other Fascists)
         List<String> knownAllyIds,
-
-        // Cards currently held by this specific player (during legislative or policy peek)
         List<PolicyType> handCards,
 
-        // The result of an investigate loyalty action (only populated if the player is the investigating President)
+        // Investigation result (Only populated for the investigating President during EXECUTIVE_ACTION)
+        String investigatedPlayerId,
         PolicyType investigatedPartyMembership
 ) {}

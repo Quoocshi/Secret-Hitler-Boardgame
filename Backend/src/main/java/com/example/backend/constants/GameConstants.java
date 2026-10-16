@@ -39,7 +39,7 @@ public final class GameConstants {
         public static final String SESSION_TOKEN_INVALID = "Session token không hợp lệ!";
         public static final String SESSION_TOKEN_NOT_FOUND = "Phiên người chơi (sessionToken) không hợp lệ trong phòng này!";
 
-        public static final String ACTION_NOT_HOST = "Chỉ chủ phòng (Host) mới có quyền bắt đầu ván đấu!";
+        public static final String ACTION_NOT_HOST = "Chỉ chủ phòng (Host) mới có quyền thực hiện hành động này!";
         public static final String INVALID_PLAYER_COUNT = "Cần từ %d đến %d người chơi để bắt đầu (hiện có: %d)!";
         public static final String PHASE_NOT_NOMINATION = "Hiện không phải giai đoạn đề cử Thủ tướng!";
         public static final String ACTION_NOT_PRESIDENT = "Chỉ Tổng thống đương nhiệm mới được quyền thực hiện hành động này!";
@@ -49,7 +49,6 @@ public final class GameConstants {
         public static final String PHASE_NOT_VOTING = "Hiện không phải giai đoạn bỏ phiếu!";
         public static final String VOTER_DEAD = "Người chơi đã bị loại không thể tham gia hành động này!";
 
-        // Legislative & Executive Phase Errors
         public static final String PHASE_NOT_LEGISLATIVE_PRESIDENT = "Hiện không phải giai đoạn Tổng thống lập pháp!";
         public static final String PHASE_NOT_LEGISLATIVE_CHANCELLOR = "Hiện không phải giai đoạn Thủ tướng lập pháp!";
         public static final String ACTION_NOT_CHANCELLOR = "Chỉ Thủ tướng đương nhiệm mới có quyền thực hiện hành động này!";
@@ -64,12 +63,21 @@ public final class GameConstants {
         public static final String TARGET_DEAD_OR_INVALID = "Mục tiêu không hợp lệ hoặc đã bị loại!";
         public static final String TARGET_ALREADY_INVESTIGATED = "Người chơi này đã bị điều tra trước đó!";
         public static final String CANNOT_TARGET_SELF = "Không thể chọn chính mình!";
+        public static final String INVESTIGATION_NOT_COMPLETED = "Tổng thống cần chọn người chơi để điều tra trước khi kết thúc lượt!";
+
+        public static final String CANNOT_KICK_SELF = "Không thể tự kick chính mình!";
+        public static final String PLAYER_NOT_FOUND = "Không tìm thấy người chơi!";
+        public static final String GAME_NOT_OVER = "Trận đấu chưa kết thúc, không thể tạo ván mới!";
     }
 
     public static final class LogMessage {
         public static final String ROOM_CREATED = "%s đã tạo phòng.";
         public static final String PLAYER_JOINED = "%s đã tham gia phòng.";
         public static final String NEW_HOST = "%s đã trở thành chủ phòng mới.";
+        public static final String PLAYER_KICKED = "Chủ phòng %s đã kick %s ra khỏi phòng.";
+        public static final String PLAYER_LEFT = "%s đã rời khỏi phòng.";
+        public static final String GAME_ABORTED = "KẾT THÚC SỚM: Số lượng người chơi hiện tại (%d) ít hơn mức tối thiểu (%d).";
+        public static final String ROOM_RESET_TO_LOBBY = "Chủ phòng %s đã đưa phòng về sảnh chờ để chuẩn bị ván mới.";
 
         public static final String GAME_STARTED = "Trận đấu bắt đầu với %d người chơi! %s là Tổng thống đầu tiên.";
         public static final String CHANCELLOR_NOMINATED = "Tổng thống %s đã đề cử %s làm Thủ tướng. Mời toàn bàn bỏ phiếu!";

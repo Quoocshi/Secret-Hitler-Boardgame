@@ -19,4 +19,10 @@ public interface RoomService {
 
     // Removes rooms that have had no user interaction past the allowed idle duration threshold
     int cleanupInactiveRooms(Duration maxIdleDuration);
+
+    // Allows the host to kick a specific player from the room (aborts game if players drop below minimum)
+    void kickPlayer(String roomCode, String hostSessionToken, String targetPlayerId);
+
+    // Allows a player to voluntarily leave the room completely
+    void leaveRoom(String roomCode, String sessionToken);
 }

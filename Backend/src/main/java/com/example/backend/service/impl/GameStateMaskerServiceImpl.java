@@ -1,5 +1,7 @@
 package com.example.backend.service.impl;
 
+import com.example.backend.constants.GameConstants;
+import com.example.backend.domain.enums.ExecutiveAction;
 import com.example.backend.domain.enums.Phase;
 import com.example.backend.domain.enums.PolicyType;
 import com.example.backend.domain.enums.Role;
@@ -21,25 +23,41 @@ public class GameStateMaskerServiceImpl implements GameStateMaskerService {
     @Override
     public PlayerViewDTO maskStateForPlayer(GameRoom room, Player targetPlayer) {
 
-        // Map public player information
+        boolean isGameOver = room.getCurrentPhase() == Phase.GAME_OVER;
+
+        // Map public player information; reveal roles only when game is over
         List<PublicPlayerDTO> publicPlayers = room.getPlayers().stream()
                 .map(p -> {
                     boolean hasVoted = room.getCurrentVotes().containsKey(p.getId());
-                    // Only reveal actual votes if they are in the lastRevealedVotes map (after voting phase ends)
                     var vote = room.getLastRevealedVotes().get(p.getId());
-                    return PublicPlayerDTO.from(p, hasVoted, vote);
+                    Role revealedRole = isGameOver ? p.getRole() : null;
+                    return PublicPlayerDTO.from(p, hasVoted, vote, revealedRole);
                 })
                 .collect(Collectors.toList());
 
-        // Determine private cards in hand (Only President/Chancellor see hand cards during their respective phases)
+        // Determine private cards in hand
         List<PolicyType> handCards = Collections.emptyList();
         if (room.getCurrentPhase() == Phase.LEGISLATIVE_PRESIDENT && targetPlayer.getId().equals(room.getCurrentPresidentId())) {
             handCards = new ArrayList<>(room.getHandPolicies());
         } else if (room.getCurrentPhase() == Phase.LEGISLATIVE_CHANCELLOR && targetPlayer.getId().equals(room.getCurrentChancellorId())) {
             handCards = new ArrayList<>(room.getHandPolicies());
-        } else if (room.getCurrentPhase() == Phase.EXECUTIVE_ACTION && targetPlayer.getId().equals(room.getCurrentPresidentId())) {
-            // Give president a peek at the cards if POLICY_PEEK is active
+        } else if (room.getCurrentPhase() == Phase.EXECUTIVE_ACTION
+                && room.getPendingExecutiveAction() == ExecutiveAction.POLICY_PEEK
+                && targetPlayer.getId().equals(room.getCurrentPresidentId())) {
             handCards = new ArrayList<>(room.getHandPolicies());
+        }
+
+        // Compute eligible chancellor IDs during NOMINATION phase
+        List<String> eligibleChancellorIds = getEligibleChancellorIds(room);
+
+        // Populate loyalty investigation result exclusively for the current President
+        String investigatedPlayerId = null;
+        PolicyType investigatedParty = null;
+        if (room.getCurrentPhase() == Phase.EXECUTIVE_ACTION
+                && room.getPendingExecutiveAction() == ExecutiveAction.INVESTIGATE_LOYALTY
+                && targetPlayer.getId().equals(room.getCurrentPresidentId())) {
+            investigatedPlayerId = room.getLastInvestigatedPlayerId();
+            investigatedParty = room.getLastInvestigatedPartyResult();
         }
 
         return new PlayerViewDTO(
@@ -57,6 +75,7 @@ public class GameStateMaskerServiceImpl implements GameStateMaskerService {
                 room.getNominatedChancellorId(),
                 room.getLastElectedPresidentId(),
                 room.getLastElectedChancellorId(),
+                eligibleChancellorIds,
 
                 room.getPendingExecutiveAction(),
                 room.getWinner(),
@@ -69,11 +88,28 @@ public class GameStateMaskerServiceImpl implements GameStateMaskerService {
                 targetPlayer.getRole(),
                 getKnownAllies(room, targetPlayer),
                 handCards,
-                getInvestigatedParty(room, targetPlayer)
+                investigatedPlayerId,
+                investigatedParty
         );
     }
 
-    // Resolves which players the target player is allowed to know the identities of
+    private List<String> getEligibleChancellorIds(GameRoom room) {
+        if (room.getCurrentPhase() != Phase.NOMINATION) {
+            return Collections.emptyList();
+        }
+        int aliveCount = room.getAlivePlayerCount();
+        String currentPresId = room.getCurrentPresidentId();
+        String lastPresId = room.getLastElectedPresidentId();
+        String lastChancId = room.getLastElectedChancellorId();
+
+        return room.getAlivePlayers().stream()
+                .filter(p -> !p.getId().equals(currentPresId))
+                .filter(p -> !p.getId().equals(lastChancId))
+                .filter(p -> aliveCount <= GameConstants.Room.MIN_PLAYERS || !p.getId().equals(lastPresId))
+                .map(Player::getId)
+                .toList();
+    }
+
     private List<String> getKnownAllies(GameRoom room, Player targetPlayer) {
         if (targetPlayer.getRole() == null || targetPlayer.getRole() == Role.LIBERAL) {
             return Collections.emptyList();
@@ -81,7 +117,6 @@ public class GameStateMaskerServiceImpl implements GameStateMaskerService {
 
         int playerCount = room.getPlayers().size();
 
-        // 5-6 player rules: Fascists AND Hitler know who each other are
         if (playerCount <= 6) {
             return room.getPlayers().stream()
                     .filter(p -> p.getRole() == Role.FASCIST || p.getRole() == Role.HITLER)
@@ -89,24 +124,13 @@ public class GameStateMaskerServiceImpl implements GameStateMaskerService {
                     .collect(Collectors.toList());
         }
 
-        // 7-10 player rules: Fascists know other Fascists and Hitler. Hitler knows NO ONE.
         if (targetPlayer.getRole() == Role.HITLER) {
             return Collections.emptyList();
         } else {
-            // Target is a normal Fascist
             return room.getPlayers().stream()
                     .filter(p -> p.getRole() == Role.FASCIST || p.getRole() == Role.HITLER)
                     .map(Player::getId)
                     .collect(Collectors.toList());
         }
-    }
-
-    // Checks if this player recently investigated someone and returns the result
-    private PolicyType getInvestigatedParty(GameRoom room, Player targetPlayer) {
-        // This is a placeholder for the frontend to show the result pop-up.
-        // In a full implementation, you might want to store the "lastInvestigatedResult"
-        // temporarily in the GameRoom or Player object until the President clicks "OK".
-        // For now, it returns null to prevent data leaks.
-        return null;
     }
 }

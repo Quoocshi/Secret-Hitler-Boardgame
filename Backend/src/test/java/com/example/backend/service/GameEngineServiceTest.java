@@ -357,14 +357,24 @@ class GameEngineServiceTest {
                 .findFirst()
                 .orElseThrow();
 
+        // President investigates target and sees result while remaining in EXECUTIVE_ACTION
         gameEngineService.investigatePlayer(room, president.getSessionToken(), target.getId());
         assertTrue(target.isInvestigated());
-        assertEquals(Phase.NOMINATION, room.getCurrentPhase());
+        assertEquals(target.getId(), room.getLastInvestigatedPlayerId());
+        assertEquals(target.getRole().getPartyMembership(), room.getLastInvestigatedPartyResult());
+        assertEquals(Phase.EXECUTIVE_ACTION, room.getCurrentPhase());
 
+        // President confirms viewing the investigation result and ends turn
+        gameEngineService.endExecutiveAction(room, president.getSessionToken());
+        assertEquals(Phase.NOMINATION, room.getCurrentPhase());
+        assertNull(room.getLastInvestigatedPlayerId());
+
+        // Target cannot be investigated a second time in a future round
+        Player nextPresident = room.getPlayerOrThrow(room.getCurrentPresidentId());
         room.setCurrentPhase(Phase.EXECUTIVE_ACTION);
         room.setPendingExecutiveAction(ExecutiveAction.INVESTIGATE_LOYALTY);
         assertThrows(GameException.class, () ->
-                gameEngineService.investigatePlayer(room, president.getSessionToken(), target.getId()));
+                gameEngineService.investigatePlayer(room, nextPresident.getSessionToken(), target.getId()));
     }
 
     @Test
