@@ -9,10 +9,16 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
-    "out/**", "node_modules/**", "dist/**", "coverage/**", "test-results/**", "playwright-report/**",
+    "out/**",
+    "node_modules/**",
+    "dist/**",
+    "coverage/**",
+    "test-results/**",
+    "playwright-report/**",
     "build/**",
     "next-env.d.ts",
   ]),
+  { rules: { curly: ["error", "all"], "one-var": ["error", "never"] } },
 ]);
 
 export default eslintConfig;
