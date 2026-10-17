@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createLobby, startGame } from "./support/room";
+import { createLobby, ownState, startGame, waitOnline } from "./support/room";
 
 for (const count of [5, 10]) {
   test(`real BE: ${count} members appear without game actions`, async ({
@@ -85,6 +85,29 @@ test("real BE: the lobby reflects host transfer after a disconnect", async ({
     await expect(
       group.pages[1].getByText("Chủ phòng", { exact: true }),
     ).toBeVisible();
+  } finally {
+    await group.close();
+  }
+});
+
+test("real BE: reloading the sole host shows the missing-host recovery notice", async ({
+  browser,
+}) => {
+  const group = await createLobby(browser, 1);
+  try {
+    const page = group.pages[0];
+    await expect(page.getByTestId("room-host")).toHaveText(
+      "Chủ phòng: P1 (Bạn)",
+    );
+    await page.reload();
+    await waitOnline(page);
+
+    const snapshot = await ownState(page);
+    expect(snapshot.players.filter((player) => player.isHost).length).toBe(0);
+    await expect(page.getByTestId("missing-host-notice")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Bắt đầu ván", exact: true }),
+    ).toHaveCount(0);
   } finally {
     await group.close();
   }

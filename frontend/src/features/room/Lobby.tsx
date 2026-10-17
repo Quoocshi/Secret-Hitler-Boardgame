@@ -11,9 +11,12 @@ export function Lobby({
   enabled: boolean;
   onStart: () => void;
 }) {
-  const [copy, setCopy] = useState<string | null>(null);
-  const me = snapshot.players.find((p) => p.id === snapshot.myPlayerId)!;
-  const count = snapshot.players.length;
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
+  const currentPlayer = snapshot.players.find(
+    (player) => player.id === snapshot.myPlayerId,
+  )!;
+  const playerCount = snapshot.players.length;
+  const host = snapshot.players.find((player) => player.isHost);
   return (
     <section className="lobby panel">
       <div className="lobby-heading">
@@ -21,6 +24,12 @@ export function Lobby({
           <p className="eyebrow">PHÒNG CHỜ</p>
           <h1>Mời bạn bè vào bàn</h1>
           <p>Chia sẻ mã phòng dưới đây. Ván bắt đầu khi có 5–10 thành viên.</p>
+          {host && (
+            <p data-testid="room-host">
+              Chủ phòng: <strong>{host.nickname}</strong>
+              {host.id === snapshot.myPlayerId && " (Bạn)"}
+            </p>
+          )}
         </div>
         <div className="room-code-box">
           <label htmlFor="copy-code">Mã phòng</label>
@@ -28,20 +37,20 @@ export function Lobby({
             id="copy-code"
             value={snapshot.roomCode}
             readOnly
-            onFocus={(e) => e.target.select()}
+            onFocus={(event) => event.target.select()}
           />
           <Button
             onClick={() => {
               void navigator.clipboard
                 ?.writeText(snapshot.roomCode)
-                .then(() => setCopy("Đã sao chép mã phòng."))
+                .then(() => setCopyNotice("Đã sao chép mã phòng."))
                 .catch(() =>
-                  setCopy(
+                  setCopyNotice(
                     "Chưa sao chép được. Chọn mã phía trên và nhấn Ctrl+C.",
                   ),
                 );
               if (!navigator.clipboard) {
-                setCopy("Chọn mã phía trên và nhấn Ctrl+C.");
+                setCopyNotice("Chọn mã phía trên và nhấn Ctrl+C.");
               }
             }}
           >
@@ -49,48 +58,57 @@ export function Lobby({
           </Button>
         </div>
       </div>
-      <StatusNotice message={copy} />
+      <StatusNotice message={copyNotice} />
       <div className="section-heading">
         <h2>Người chơi</h2>
-        <span data-testid="member-count">{count}/10</span>
+        <span data-testid="member-count">{playerCount}/10</span>
       </div>
       <ul className="lobby-players">
-        {snapshot.players.map((p) => (
-          <li key={p.id}>
+        {snapshot.players.map((player) => (
+          <li key={player.id}>
             <span className="avatar">
-              {p.nickname.slice(0, 1).toUpperCase()}
+              {player.nickname.slice(0, 1).toUpperCase()}
             </span>
             <span>
-              {p.nickname}
-              {p.id === snapshot.myPlayerId && " (Bạn)"}
+              {player.nickname}
+              {player.id === snapshot.myPlayerId && " (Bạn)"}
             </span>
             <span className="player-badges">
-              {p.isHost && <span className="badge">Chủ phòng</span>}
+              {player.isHost && <span className="badge">Chủ phòng</span>}
               <span className="badge">
-                {p.isConnected ? "Đang kết nối" : "Mất kết nối"}
+                {player.isConnected ? "Đã kết nối" : "Mất kết nối"}
               </span>
             </span>
           </li>
         ))}
       </ul>
       <div className="lobby-footer">
-        {me.isHost ? (
+        {currentPlayer.isHost && (
           <>
             <Button
               className="primary"
               onClick={onStart}
-              disabled={!enabled || count < 5 || count > 10}
+              disabled={!enabled || playerCount < 5 || playerCount > 10}
             >
               Bắt đầu ván
             </Button>
             <p>
-              {count < 5
-                ? `Cần thêm ${5 - count} người để bắt đầu.`
+              {playerCount < 5
+                ? `Cần thêm ${5 - playerCount} người để bắt đầu.`
                 : "Mọi người đã sẵn sàng cho một ván mới."}
             </p>
           </>
-        ) : (
-          <p>Đang chờ chủ phòng bắt đầu ván.</p>
+        )}
+        {!currentPlayer.isHost && host && (
+          <p>
+            Đang chờ <strong>{host.nickname}</strong> (chủ phòng) bắt đầu ván.
+          </p>
+        )}
+        {!host && (
+          <p role="status" data-testid="missing-host-notice">
+            Phòng hiện không có chủ phòng nên chưa thể bắt đầu ván. Hãy rời
+            phòng và tạo phòng mới.
+          </p>
         )}
       </div>
     </section>

@@ -1,5 +1,6 @@
 import type { Connection } from "@/lib/realtime/room-reducer";
 import { Button } from "@/components/ui/Button";
+
 export const connectionLabels: Record<Connection, string> = {
   idle: "Đang chuẩn bị",
   restoring: "Đang khôi phục",
@@ -12,35 +13,40 @@ export const connectionLabels: Record<Connection, string> = {
   error: "Cần kiểm tra",
   leaving: "Đang rời phòng",
 };
+
+const connectionMessages: Partial<Record<Connection, string>> = {
+  restoring: "Đang khôi phục đúng phiên của bạn.",
+  connecting: "Đang kết nối với bàn chơi.",
+  syncing: "Đang lấy trạng thái mới nhất. Hãy chờ trước khi thao tác.",
+  reconnecting:
+    "Mất kết nối. Các nút thao tác đã khóa; thao tác đang chờ sẽ không tự gửi lại.",
+  duplicate:
+    "Phiên đang hoạt động ở tab khác. Hãy đóng tab đó trước khi kết nối lại.",
+  expired: "Phòng hoặc phiên không còn hợp lệ. Hãy quay về trang đầu.",
+  error:
+    "Chưa thể tiếp tục. Hãy kiểm tra thông báo rồi kết nối lại hoặc rời phòng.",
+  leaving: "Đang đóng phiên chơi.",
+};
+
+interface ConnectionBannerProps {
+  connection: Connection;
+  onRetry: () => void;
+}
+
 export function ConnectionBanner({
   connection,
   onRetry,
-}: {
-  connection: Connection;
-  onRetry: () => void;
-}) {
+}: ConnectionBannerProps) {
   if (connection === "online" || connection === "idle") {
     return null;
   }
-  const messages: Partial<Record<Connection, string>> = {
-    restoring: "Đang khôi phục đúng phiên của bạn.",
-    connecting: "Đang kết nối với bàn chơi.",
-    syncing: "Đang lấy trạng thái mới nhất. Hãy chờ trước khi thao tác.",
-    reconnecting:
-      "Mất kết nối. Các nút thao tác đã khóa; thao tác đang chờ sẽ không tự gửi lại.",
-    duplicate:
-      "Phiên đang hoạt động ở tab khác. Hãy đóng tab đó trước khi kết nối lại.",
-    expired: "Phòng hoặc phiên không còn hợp lệ. Hãy quay về trang đầu.",
-    error:
-      "Chưa thể tiếp tục. Hãy kiểm tra thông báo rồi kết nối lại hoặc rời phòng.",
-    leaving: "Đang đóng phiên chơi.",
-  };
+
+  const canRetry = ["reconnecting", "duplicate", "error"].includes(connection);
+
   return (
     <div className="connection-banner" role="status">
-      <span>{messages[connection]}</span>
-      {["reconnecting", "duplicate", "error"].includes(connection) && (
-        <Button onClick={onRetry}>Kết nối lại</Button>
-      )}
+      <span>{connectionMessages[connection]}</span>
+      {canRetry && <Button onClick={onRetry}>Kết nối lại</Button>}
     </div>
   );
 }
