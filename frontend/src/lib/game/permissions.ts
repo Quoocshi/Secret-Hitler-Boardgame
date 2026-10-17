@@ -56,6 +56,16 @@ export function actionPermission(
   const currentPlayer = snapshot.players.find(
     (player) => player.id === snapshot.myPlayerId,
   );
+  // Resetting a finished room is available even when its host died in the game.
+  if (action === "restart") {
+    return snapshot.currentPhase === "GAME_OVER" &&
+      currentPlayer?.isHost &&
+      currentPlayer.isConnected
+      ? allowed
+      : denied(
+          "Chỉ chủ phòng đang kết nối mới có thể đưa ván đã kết thúc về phòng chờ.",
+        );
+  }
   // Room management remains available to a host who has been eliminated or whose game ended.
   if (action === "kick") {
     return currentPlayer?.isHost && currentPlayer.isConnected

@@ -181,6 +181,44 @@ test("real BE: kicking a nominee aborts a five-player game and closes the guest'
     }
     await expect(guest.getByTestId("connection")).toHaveText("Đã rời phòng");
     await expect(guest.getByTestId("private-info")).toHaveCount(0);
+    await expect(
+      guest.getByRole("button", { name: "Trở lại phòng chờ", exact: true }),
+    ).toHaveCount(0);
+    const remainingGuest = group.pages.find(
+      (page) => page !== host && page !== guest,
+    )!;
+    await expect(
+      remainingGuest.getByRole("button", {
+        name: "Trở lại phòng chờ",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await host
+      .getByRole("button", { name: "Trở lại phòng chờ", exact: true })
+      .click();
+    for (const page of group.pages.filter((page) => page !== guest)) {
+      await expect(page.getByTestId("member-count")).toHaveText("4/10");
+      await expect(page.getByTestId("room-code")).toHaveText(group.roomCode);
+      await expect(page.getByTestId("game-result")).toHaveCount(0);
+      await expect(page.getByTestId("private-info")).toHaveCount(0);
+    }
+    await expect(
+      host.getByRole("button", { name: "Bắt đầu ván", exact: true }),
+    ).toBeDisabled();
+    await guest.goto("/");
+    await guest.getByLabel("Tên của bạn").fill(target.nickname);
+    await guest.getByLabel("Mã phòng").fill(group.roomCode);
+    await guest.getByRole("button", { name: "Vào phòng", exact: true }).click();
+    await expect(guest.getByTestId("connection")).toHaveText("Đã đồng bộ");
+    await expect(host.getByTestId("member-count")).toHaveText("5/10");
+    await startGame(group.pages);
+    for (const page of group.pages) {
+      await expect(page.getByTestId("phase")).toHaveAttribute(
+        "data-phase",
+        "NOMINATION",
+      );
+      await expect(page.getByTestId("room-code")).toHaveText(group.roomCode);
+    }
   } finally {
     await group.close();
   }

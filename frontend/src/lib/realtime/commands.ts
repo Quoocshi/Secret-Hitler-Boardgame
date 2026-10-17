@@ -60,6 +60,8 @@ export function actionContextEnded(
     (player) => player.id === snapshot.myPlayerId,
   );
   switch (action) {
+    case "restart":
+      return snapshot.currentPhase === "LOBBY";
     case "kick":
       return (
         !!targetPlayerId &&

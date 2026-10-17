@@ -45,6 +45,16 @@ scroll. Bound their height to the viewport and allow internal scrolling. Any
 future button-associated popover must appear beside its trigger and stay within
 the viewport, per the user's popup placement requirement.
 
+## Game results layout
+
+Keep the existing paper palette and Noto fonts. Use an unboxed result heading
+with the winning faction as its color accent, followed by a two-column layout:
+public role roster on the left, rematch actions on the right. Use compact rows,
+hairline separators and text role badges, not illustrated cards or a new hero.
+On narrower windows, stack the columns. Place the policy board and public log
+inside a native disclosure below the result. Never fabricate absent roles or
+statistics. Artwork is optional and must not carry button labels or private data.
+
 ## Behavior
 
 Readable Vietnamese notices, keyboard focus, escape/cancel, explicit confirmations.

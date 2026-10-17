@@ -24,6 +24,7 @@ const cases: {
   extra?: Partial<PlayerView>;
 }[] = [
   { action: "start", phase: "LOBBY", payload: {} },
+  { action: "restart", phase: "GAME_OVER", payload: {} },
   {
     action: "nominate",
     phase: "NOMINATION",
@@ -109,7 +110,10 @@ it.each(cases)(
   "does not publish $action in an unavailable context",
   async ({ action, payload }) => {
     const room = await onlineRoom(
-      view({ currentPhase: "GAME_OVER", winner: "LIBERAL" }),
+      view({
+        currentPhase: action === "restart" ? "LOBBY" : "GAME_OVER",
+        winner: "LIBERAL",
+      }),
     );
     expect(() => room.client.send(action, payload)).toThrow();
     expect(room.socket.publish).not.toHaveBeenCalled();

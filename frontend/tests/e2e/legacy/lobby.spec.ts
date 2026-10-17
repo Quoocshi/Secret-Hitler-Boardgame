@@ -38,7 +38,7 @@ for (const count of [5, 10]) {
             .click();
           await expect(
             outsider.getByText(
-              "Ván đã bắt đầu; chỉ thành viên cũ có thể trở lại.",
+              "Phòng đã bắt đầu hoặc kết thúc ván nên chưa nhận người tham gia mới. Hãy nhờ chủ phòng chọn Trở lại phòng chờ sau khi ván kết thúc, rồi vào lại bằng mã phòng cũ.",
               { exact: true },
             ),
           ).toBeVisible();

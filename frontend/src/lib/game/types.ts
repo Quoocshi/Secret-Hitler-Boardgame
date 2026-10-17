@@ -17,6 +17,7 @@ export const executives = [
 ] as const;
 export const actions = [
   "start",
+  "restart",
   "nominate",
   "vote",
   "discard",

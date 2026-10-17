@@ -34,7 +34,15 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
       />
     );
   } else if (snapshot.currentPhase === "GAME_OVER") {
-    content = <GameOverPanel snapshot={snapshot} onLeave={leave} />;
+    content = (
+      <GameOverPanel
+        snapshot={snapshot}
+        online={online}
+        pending={pending}
+        onRestart={() => send("restart")}
+        onLeave={leave}
+      />
+    );
   } else {
     content = (
       <GameScreen

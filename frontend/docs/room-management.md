@@ -10,7 +10,9 @@ FE sử dụng các endpoint đã có trong BE tại commit `3e50528`. Không th
 - **Rời phòng** gửi một lần tới `/app/room/{roomCode}/leave`, rồi dùng GET kiểm tra tư cách thành viên. Chỉ sau khi BE xác nhận phiên không còn thuộc phòng, FE mới xóa danh tính và trở về trang đầu.
 - Trong lúc rời phòng, FE dừng polling cũ, vô hiệu hóa push cũ và không sửa presence bằng `/join`. Khi mất kết nối hoặc chưa xác nhận được kết quả, FE đóng thông tin riêng, giữ danh tính và yêu cầu người dùng kết nối lại kiểm tra; không tự gửi lại leave.
 - Người bị kick không nhận snapshot mới từ BE. Lượt đồng bộ membership tiếp theo phát hiện việc bị xóa, đóng dữ liệu riêng, xóa danh tính cũ và trả khóa tab. Không tự tạo thành viên thay thế. Người dùng có thể về trang đầu và tạo phòng mới ngay.
-- Đóng tab, F5 hoặc mất mạng vẫn là ngắt kết nối, khác với **Rời phòng**. Kick không phải cơ chế cấm vào phòng vĩnh viễn.
+- Đóng tab, F5 hoặc mất mạng vẫn giữ tư cách thành viên để kết nối lại, khác với **Rời phòng** hoặc kick vốn xóa thành viên khỏi BE. Người bị kick chỉ có thể chủ động tham gia lại như thành viên mới khi phòng ở `LOBBY`.
+- Khi ván kết thúc, chủ phòng dùng **Trở lại phòng chờ** gửi một lần tới `/app/room/{roomCode}/restart`. FE chỉ chuyển về phòng chờ sau khi nhận snapshot `LOBBY` từ BE, không tự reset ván hoặc tự gửi lại lệnh. Mã phòng và các thành viên còn lại được giữ nguyên. Nút vẫn dành cho chủ phòng đã bị loại trong ván, nhưng khóa khi mất kết nối hoặc đang chờ xác nhận thao tác khác. Thành viên khác chờ chủ phòng mở lại phòng chờ.
+- Sau khi phòng trở về `LOBBY`, người đã rời hoặc bị kick có thể dùng mã cũ để tham gia lại. Có thể mở lại phòng khi còn dưới 5 người; chỉ bắt đầu ván mới khi đủ 5–10 người.
 
 ## Dừng ván
 

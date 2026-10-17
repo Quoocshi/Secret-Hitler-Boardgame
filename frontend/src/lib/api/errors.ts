@@ -12,7 +12,8 @@ const messages: Record<string, string> = {
   ROOM_NOT_FOUND: "Phòng không còn tồn tại. Hãy tạo hoặc vào phòng mới.",
   INVALID_SESSION: "Phiên chơi không hợp lệ. Hãy quay về trang đầu.",
   ROOM_FULL: "Phòng đã đủ 10 người.",
-  ROOM_STARTED: "Ván đã bắt đầu; chỉ thành viên cũ có thể trở lại.",
+  ROOM_STARTED:
+    "Phòng đã bắt đầu hoặc kết thúc ván nên chưa nhận người tham gia mới. Hãy nhờ chủ phòng chọn Trở lại phòng chờ sau khi ván kết thúc, rồi vào lại bằng mã phòng cũ.",
   NICKNAME_DUPLICATED: "Tên này đã có trong phòng.",
   NETWORK_ERROR: "Không thể kết nối máy chủ. Hãy kiểm tra mạng và thử lại.",
   SERVER_ERROR: "Máy chủ chưa xử lý được yêu cầu. Hãy thử lại.",
