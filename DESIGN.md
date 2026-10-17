@@ -40,6 +40,11 @@ Preserve `frontend/src/app/globals.css`, existing spacing, 6px button corners,
 colors and Noto Vietnamese subsets. No new gradients, hero cards, themes, UI
 framework or motion. Reuse Button, Field, ConfirmDialog and StatusNotice.
 
+Confirmation dialogs must stay centered in the viewport, including after page
+scroll. Bound their height to the viewport and allow internal scrolling. Any
+future button-associated popover must appear beside its trigger and stay within
+the viewport, per the user's popup placement requirement.
+
 ## Behavior
 
 Readable Vietnamese notices, keyboard focus, escape/cancel, explicit confirmations.

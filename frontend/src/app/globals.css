@@ -128,6 +128,7 @@ input[aria-invalid="true"] {
 .entry-layout {
   max-width: 1440px;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: auto;
   padding: 7vh 7vw;
   display: grid;
@@ -353,6 +354,12 @@ input[aria-invalid="true"] {
   color: #757866;
 }
 .confirm-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
   border: 1px solid #c7c3ae;
   border-radius: 12px;
   padding: 28px;
