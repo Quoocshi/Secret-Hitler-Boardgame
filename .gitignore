@@ -3,3 +3,6 @@
 
 .vercel
 .env*
+
+# Local logs and generated validation reports
+/artifacts/

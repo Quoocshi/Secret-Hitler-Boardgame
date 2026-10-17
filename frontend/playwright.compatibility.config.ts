@@ -3,7 +3,7 @@ process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 
 export default defineConfig({
   testDir: "./tests/e2e/compatibility",
-  outputDir: "test-results/compatibility",
+  outputDir: "../artifacts/reports/test-results/compatibility",
   timeout: 30000,
   workers: 1,
   reporter: [
@@ -11,7 +11,8 @@ export default defineConfig({
     [
       "json",
       {
-        outputFile: "test-results/compatibility/results.json",
+        outputFile:
+          "../artifacts/reports/test-results/compatibility/results.json",
       },
     ],
   ],

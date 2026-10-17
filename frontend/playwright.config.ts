@@ -8,14 +8,20 @@ process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 
 export default defineConfig({
   testDir: "./tests/e2e/legacy",
-  outputDir: "test-results/legacy",
+  outputDir: "../artifacts/reports/test-results/legacy",
   timeout: 120000,
   fullyParallel: false,
   workers: 1,
   reporter: [
     ["list"],
-    ["json", { outputFile: "test-results/legacy/results.json" }],
-    ["html", { open: "never", outputFolder: "playwright-report" }],
+    [
+      "json",
+      { outputFile: "../artifacts/reports/test-results/legacy/results.json" },
+    ],
+    [
+      "html",
+      { open: "never", outputFolder: "../artifacts/reports/playwright-report" },
+    ],
   ],
   use: { baseURL, trace: "off", video: "off", screenshot: "off" },
   projects: [

@@ -35,7 +35,7 @@ try {
     Pop-Location
 }
 
-$testOutputPath = Join-Path $frontendPath 'test-results'
+$testOutputPath = Join-Path $repositoryPath 'artifacts/logs/frontend'
 New-Item -ItemType Directory -Path $testOutputPath -Force | Out-Null
 $jarPath = Join-Path $backendPath 'target/Backend-0.0.1-SNAPSHOT.jar'
 $serverStartOptions = @{
