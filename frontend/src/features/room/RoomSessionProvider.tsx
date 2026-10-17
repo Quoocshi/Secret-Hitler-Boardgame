@@ -1,4 +1,3 @@
-"use client";
 import {
   createContext,
   useCallback,
@@ -8,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
 import { createRoom, joinRoom } from "@/lib/api/rooms";
 import { errorMessage } from "@/lib/api/errors";
 import type { Action, SessionIdentity } from "@/lib/game/types";
@@ -50,7 +49,7 @@ export function RoomSessionProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [state, reactDispatch] = useReducer(roomReducer, initialRoomState);
   const stateRef = useRef(state);
   const [identity, setIdentity] = useState<SessionIdentity | null>(null);
@@ -108,7 +107,9 @@ export function RoomSessionProvider({
         if (match) {
           const id = readIdentity();
           if (!id || id.roomCode !== code) {
-            router.replace("/?room=" + encodeURIComponent(code));
+            void navigate("/?room=" + encodeURIComponent(code), {
+              replace: true,
+            });
             return;
           }
           life.release = await acquireRoomLock();
@@ -143,7 +144,7 @@ export function RoomSessionProvider({
         current.release?.();
       }
     };
-  }, [boot, dispatch, router]);
+  }, [boot, dispatch, navigate]);
   async function enter(name: string, code?: string) {
     if (
       runtime.current.release ||
@@ -174,7 +175,7 @@ export function RoomSessionProvider({
       saveIdentity(id);
       setNickname(name);
       boot(id);
-      router.push("/room/" + id.roomCode);
+      void navigate("/room/" + id.roomCode);
     } catch (error) {
       life.release?.();
       life.release = undefined;
@@ -210,7 +211,7 @@ export function RoomSessionProvider({
         generation: life.generation + 1,
       });
     }
-    router.replace("/");
+    void navigate("/", { replace: true });
   }
   async function retry() {
     if (!identity) {

@@ -1,4 +1,3 @@
-"use client";
 import { useState } from "react";
 import type { Action, PlayerView } from "@/lib/game/types";
 import { executiveLabels } from "@/lib/game/labels";

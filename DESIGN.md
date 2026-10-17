@@ -50,3 +50,7 @@ Never expose private roles/cards in public live regions or diagnostic artifacts.
 
 Descriptive names, multiline JSX, clear responsibilities, named timing constants,
 comments explaining race/recovery decisions. Only FE changes. No commit/push/deploy.
+
+## React migration — 2026-10-17
+
+Frontend now uses React + TypeScript with Vite and React Router. No Next.js runtime/server components. Preserve the same visual tokens and globals.css. Backend is pulled unchanged from origin/develop at 3e50528; new results may be displayed only when supplied for the correct recipient/phase. Branch: align-frontend-backend.

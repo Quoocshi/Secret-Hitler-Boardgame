@@ -1,4 +1,3 @@
-"use client";
 import { useEffect, useRef } from "react";
 import { Button } from "./Button";
 export function ConfirmDialog({

@@ -1,4 +1,3 @@
-"use client";
 import { useRoomSession } from "./RoomSessionProvider";
 import { Lobby } from "./Lobby";
 import { StatusNotice } from "@/components/ui/StatusNotice";
