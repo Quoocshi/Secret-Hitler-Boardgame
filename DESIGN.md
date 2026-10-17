@@ -3,18 +3,18 @@ version: 1
 name: hboardgame-preserved-brand
 description: Existing rendered Vietnamese board-game interface preserved for compatibility work.
 colors:
-  canvas: "#f4f0e6"
-  ink: "#25291f"
-  primary: "#344a39"
-  primary-active: "#263c2b"
-  liberal: "#246975"
-  fascist: "#a44832"
-  surface: "#faf8f1"
-  muted: "#6c705d"
-  hairline: "#bdbdab"
+  canvas: '#f4f0e6'
+  ink: '#25291f'
+  primary: '#344a39'
+  primary-active: '#263c2b'
+  liberal: '#246975'
+  fascist: '#a44832'
+  surface: '#faf8f1'
+  muted: '#6c705d'
+  hairline: '#bdbdab'
 typography:
-  display: { fontFamily: "Noto Serif Variable", lineHeight: 1.3 }
-  body: { fontFamily: "Noto Sans Variable", lineHeight: 1.55 }
+  display: { fontFamily: 'Noto Serif Variable', lineHeight: 1.3 }
+  body: { fontFamily: 'Noto Sans Variable', lineHeight: 1.55 }
 ---
 
 # HBoardGame visual contract
