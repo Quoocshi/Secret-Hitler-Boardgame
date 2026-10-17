@@ -53,6 +53,7 @@ export function RoomSessionProvider({
   const [state, reactDispatch] = useReducer(roomReducer, initialRoomState);
   const stateRef = useRef(state);
   const retryInProgress = useRef(false);
+  const leaveInProgress = useRef(false);
   const [identity, setIdentity] = useState<SessionIdentity | null>(null);
   const [nickname, setNickname] = useState("");
   const [entryCode, setEntryCode] = useState("");
@@ -64,6 +65,21 @@ export function RoomSessionProvider({
     generation: number;
   }>({ generation: 0 });
   const dispatch = useCallback((event: RoomEvent) => {
+    if (
+      event.type === "connection" &&
+      event.connection === "removed" &&
+      event.generation === stateRef.current.generation
+    ) {
+      // A kicked member must not recover the deleted membership through /join.
+      try {
+        clearIdentity();
+      } catch {
+        // The transport remains stopped even when browser storage is unavailable.
+      }
+      setIdentity(null);
+      runtime.current.release?.();
+      runtime.current.release = undefined;
+    }
     stateRef.current = roomReducer(stateRef.current, event);
     reactDispatch(event);
   }, []);
@@ -159,6 +175,7 @@ export function RoomSessionProvider({
       return;
     }
     const sessionRuntime = runtime.current;
+    dispatch({ type: "reset", generation: sessionRuntime.generation });
     dispatch({
       type: "connection",
       connection: "restoring",
@@ -205,11 +222,50 @@ export function RoomSessionProvider({
     }
   }
   async function leave() {
+    if (leaveInProgress.current) {
+      return;
+    }
+    // A tab that never acquired the lock must not erase the active tab's identity.
     if (!runtime.current.release && !identity) {
       void navigate("/", { replace: true });
       return;
     }
     const sessionRuntime = runtime.current;
+    leaveInProgress.current = true;
+    const leaveGeneration = sessionRuntime.generation;
+    try {
+      if (
+        identity &&
+        !["expired", "removed"].includes(stateRef.current.connection)
+      ) {
+        if (!sessionRuntime.client) {
+          throw new Error("Kết nối chưa sẵn sàng để rời phòng.");
+        }
+        await sessionRuntime.client.leave();
+      }
+    } catch (error) {
+      if (
+        runtime.current === sessionRuntime &&
+        sessionRuntime.generation === leaveGeneration
+      ) {
+        dispatch({ type: "reset", generation: sessionRuntime.generation });
+        dispatch({
+          type: "connection",
+          connection: "error",
+          notice: errorMessage(error),
+          generation: sessionRuntime.generation,
+        });
+      }
+      leaveInProgress.current = false;
+      return;
+    }
+    if (
+      runtime.current !== sessionRuntime ||
+      sessionRuntime.generation !== leaveGeneration
+    ) {
+      leaveInProgress.current = false;
+      return;
+    }
     dispatch({
       type: "connection",
       connection: "leaving",
@@ -233,10 +289,15 @@ export function RoomSessionProvider({
       });
     }
     void navigate("/", { replace: true });
+    leaveInProgress.current = false;
   }
-
   async function retry() {
-    if (!identity || retryInProgress.current || !runtime.current.release) {
+    if (
+      !identity ||
+      retryInProgress.current ||
+      leaveInProgress.current ||
+      !runtime.current.release
+    ) {
       return;
     }
     const sessionRuntime = runtime.current;

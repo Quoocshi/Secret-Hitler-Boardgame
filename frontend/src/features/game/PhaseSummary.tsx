@@ -1,9 +1,13 @@
 import type { PlayerView } from "@/lib/game/types";
 import { phaseLabels, executiveLabels } from "@/lib/game/labels";
+
 function playerName(snapshot: PlayerView, playerId: string | null): string {
+  if (!playerId) {
+    return "Chưa có";
+  }
   return (
     snapshot.players.find((player) => player.id === playerId)?.nickname ??
-    "Chưa có"
+    "Đã rời phòng"
   );
 }
 

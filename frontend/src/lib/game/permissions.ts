@@ -56,6 +56,14 @@ export function actionPermission(
   const currentPlayer = snapshot.players.find(
     (player) => player.id === snapshot.myPlayerId,
   );
+  // Room management remains available to a host who has been eliminated or whose game ended.
+  if (action === "kick") {
+    return currentPlayer?.isHost && currentPlayer.isConnected
+      ? allowed
+      : denied(
+          "Chỉ chủ phòng đang kết nối mới có thể mời người khác rời phòng.",
+        );
+  }
   if (!currentPlayer?.isAlive) {
     return denied("Bạn đã bị loại và chỉ có thể theo dõi.");
   }
@@ -151,4 +159,16 @@ export function executiveTargetEligibility(
     return denied("Người chơi đã được điều tra.");
   }
   return allowed;
+}
+
+export function kickTargetEligibility(
+  snapshot: PlayerView,
+  playerId: string,
+): Permission {
+  if (playerId === snapshot.myPlayerId) {
+    return denied("Không thể tự mời mình rời phòng.");
+  }
+  return snapshot.players.some((player) => player.id === playerId)
+    ? allowed
+    : denied("Người chơi không còn trong phòng.");
 }

@@ -38,7 +38,7 @@ it("removes the private view and never joins again after membership is deleted",
   await flushTransport();
   expect(transport.join).toHaveBeenCalledOnce();
   expect(room.state().snapshot).toBeNull();
-  expect(room.state().connection).toBe("expired");
+  expect(room.state().connection).toBe("removed");
 });
 
 it("ignores callbacks from a disconnected socket epoch", async () => {

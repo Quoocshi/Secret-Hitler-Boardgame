@@ -27,6 +27,7 @@ export const actions = [
   "investigate",
   "special-election",
   "end-action",
+  "kick",
 ] as const;
 
 export type Phase = (typeof phases)[number];

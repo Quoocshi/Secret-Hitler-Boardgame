@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { RoomEntryForm } from "@/features/room/RoomEntryForm";
 import { useRoomSession } from "@/features/room/RoomSessionProvider";
 import { LeaveButton } from "@/features/room/LeaveButton";
+import { StatusNotice } from "@/components/ui/StatusNotice";
 
 export function HomePage() {
   const session = useRoomSession();
@@ -19,9 +20,14 @@ export function HomePage() {
         <p>
           <Link to={"/room/" + session.identity.roomCode}>Quay lại phòng</Link>
         </p>
+        <StatusNotice
+          message={session.state.notice}
+          error={session.state.connection === "error"}
+        />
         <LeaveButton
           onLeave={session.leave}
           disabled={session.state.connection === "leaving"}
+          localOnly={session.state.connection === "expired"}
         />
       </section>
     );

@@ -1,4 +1,5 @@
 import type { PlayerView } from "@/lib/game/types";
+import { KickPlayerButton } from "@/features/room/KickPlayerButton";
 
 export function PlayerList({ snapshot }: { snapshot: PlayerView }) {
   const isVoting = snapshot.currentPhase === "VOTING";
@@ -29,6 +30,7 @@ export function PlayerList({ snapshot }: { snapshot: PlayerView }) {
                 {player.id === snapshot.myPlayerId ? " (Bạn)" : ""}
               </strong>
               <div className="player-badges">
+                {player.isHost && <span className="badge">Chủ phòng</span>}
                 {player.id === snapshot.currentPresidentId && (
                   <span className="badge">Tổng thống</span>
                 )}
@@ -54,6 +56,7 @@ export function PlayerList({ snapshot }: { snapshot: PlayerView }) {
                   {player.lastRevealedVote === "JA" ? "Đồng ý" : "Phản đối"}
                 </small>
               )}
+              <KickPlayerButton playerId={player.id} />
             </div>
           </li>
         ))}

@@ -10,6 +10,7 @@ export const connectionLabels: Record<Connection, string> = {
   reconnecting: "Đang kết nối lại",
   duplicate: "Phiên trùng",
   expired: "Phòng hết hạn",
+  removed: "Đã rời phòng",
   error: "Cần kiểm tra",
   leaving: "Đang rời phòng",
 };
@@ -23,6 +24,8 @@ const connectionMessages: Partial<Record<Connection, string>> = {
   duplicate:
     "Phiên đang hoạt động ở tab khác. Hãy đóng tab đó trước khi kết nối lại.",
   expired: "Phòng hoặc phiên không còn hợp lệ. Hãy quay về trang đầu.",
+  removed:
+    "Bạn không còn là thành viên của phòng. Thông tin riêng đã được đóng.",
   error:
     "Chưa thể tiếp tục. Hãy kiểm tra thông báo rồi kết nối lại hoặc rời phòng.",
   leaving: "Đang đóng phiên chơi.",

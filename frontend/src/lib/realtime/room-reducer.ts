@@ -10,6 +10,7 @@ export type Connection =
   | "reconnecting"
   | "duplicate"
   | "expired"
+  | "removed"
   | "error"
   | "leaving";
 export interface ClientRoomState {
@@ -96,7 +97,11 @@ export function roomReducer(
       const contextEnded =
         !!state.pendingAction &&
         changed &&
-        actionContextEnded(event.snapshot, state.pendingAction.action);
+        actionContextEnded(
+          event.snapshot,
+          state.pendingAction.action,
+          state.pendingAction.targetPlayerId,
+        );
       let vetoKnowledge = state.vetoKnowledge;
       if (event.snapshot.currentPhase === "VETO_CONFIRMATION") {
         vetoKnowledge = "observed-requested";

@@ -5,29 +5,32 @@ export function LeaveButton({
   onLeave,
   disabled = false,
   label = "Rời phòng",
+  localOnly = false,
 }: {
   onLeave: () => Promise<void>;
   disabled?: boolean;
   label?: string;
+  localOnly?: boolean;
 }) {
-  const [confirm, setConfirm] = useState(false);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
   return (
     <>
-      <Button disabled={disabled} onClick={() => setConfirm(true)}>
+      <Button disabled={disabled} onClick={() => setConfirmationOpen(true)}>
         {label}
       </Button>
-      {confirm && (
+      {confirmationOpen && (
         <ConfirmDialog
           title="Rời bàn chơi?"
-          onCancel={() => setConfirm(false)}
+          onCancel={() => setConfirmationOpen(false)}
           onConfirm={() => {
-            setConfirm(false);
+            setConfirmationOpen(false);
             void onLeave();
           }}
         >
           <p>
-            Bạn sẽ ngắt kết nối khỏi bàn chơi. Những người còn lại vẫn có thể
-            theo dõi ván.
+            {localOnly
+              ? "Phiên này không còn tham gia phòng. Bạn sẽ trở về trang đầu."
+              : "Bạn sẽ rời phòng và bị xóa khỏi danh sách thành viên, không thể vào lại ván đang chơi. Nếu còn dưới 5 thành viên, ván sẽ dừng. Bạn chỉ có thể tham gia lại như người mới khi phòng đang chờ."}
           </p>
         </ConfirmDialog>
       )}

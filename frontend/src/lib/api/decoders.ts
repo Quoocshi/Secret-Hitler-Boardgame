@@ -116,11 +116,15 @@ export function decodePlayerView(input: unknown): PlayerView {
         ),
     );
   }
-  const investigatedPlayerId = view.investigatedPlayerId ?? null;
+  const suppliedInvestigationTarget = view.investigatedPlayerId ?? null;
   assert(
-    investigatedPlayerId === null ||
-      (isText(investigatedPlayerId) && playerIds.has(investigatedPlayerId)),
+    suppliedInvestigationTarget === null || isText(suppliedInvestigationTarget),
   );
+  const investigatedPlayerId =
+    suppliedInvestigationTarget !== null &&
+    playerIds.has(suppliedInvestigationTarget)
+      ? suppliedInvestigationTarget
+      : null;
   for (const key of [
     "currentPresidentId",
     "currentChancellorId",
@@ -128,10 +132,9 @@ export function decodePlayerView(input: unknown): PlayerView {
     "lastElectedPresidentId",
     "lastElectedChancellorId",
   ]) {
-    assert(
-      view[key] === null ||
-        (isText(view[key]) && playerIds.has(view[key] as string)),
-    );
+    // BE retains office references when a member leaves, including in an aborted game.
+    // Keep the identifiers without treating a removed office holder as an active player.
+    assert(view[key] === null || isText(view[key]));
   }
   assert(
     view.myRole === null ||

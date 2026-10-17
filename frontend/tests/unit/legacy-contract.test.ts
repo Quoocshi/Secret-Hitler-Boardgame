@@ -37,7 +37,7 @@ describe("legacy backend snapshots", () => {
   it.each([
     { currentPhase: "UNKNOWN" },
     { handCards: ["HITLER"] },
-    { currentPresidentId: "outsider" },
+    { currentPresidentId: 123 },
     { myPlayerId: "outsider" },
   ])("rejects invalid data %j", (overrides) => {
     expect(() => decodePlayerView(legacyView(overrides))).toThrow(SchemaError);

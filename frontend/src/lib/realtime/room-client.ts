@@ -8,9 +8,11 @@ import {
   actionPermission,
   chancellorEligibility,
   executiveTargetEligibility,
+  kickTargetEligibility,
 } from "@/lib/game/permissions";
 import type { Action, PlayerView, SessionIdentity } from "@/lib/game/types";
 import { ACTION_TIMEOUT_MS, prepareCommand } from "./commands";
+import { waitForMembershipRemoval } from "./room-departure";
 import type { ClientRoomState, Connection, RoomEvent } from "./room-reducer";
 
 export const POLL_INTERVAL_MS = 2000;
@@ -28,6 +30,7 @@ export class RoomClient {
   private readonly lifetime = new AbortController();
   private requests = new AbortController();
   private stopped = false;
+  private departing = false;
   private epoch = 0;
   private pushSequence = 0;
   private expectedPlayerId: string | null = null;
@@ -130,6 +133,10 @@ export class RoomClient {
   }
 
   private async connected() {
+    if (this.departing) {
+      await this.stop();
+      return;
+    }
     this.clearPoll();
     this.requests.abort();
     this.requests = new AbortController();
@@ -281,6 +288,10 @@ export class RoomClient {
     if (this.stopped) {
       return;
     }
+    if (this.departing) {
+      void this.stop();
+      return;
+    }
     this.epoch++;
     this.requests.abort();
     this.requests = new AbortController();
@@ -305,7 +316,13 @@ export class RoomClient {
       ["INVALID_SESSION", "ROOM_NOT_FOUND"].includes(error.code)
     ) {
       this.emit({ type: "reset" });
-      this.connection("expired", errorMessage(error));
+      const removed = error.code === "INVALID_SESSION";
+      this.connection(
+        removed ? "removed" : "expired",
+        removed
+          ? "Bạn không còn là thành viên của phòng. Hãy về trang đầu để tiếp tục."
+          : errorMessage(error),
+      );
       void this.stop();
       return;
     }
@@ -349,6 +366,12 @@ export class RoomClient {
       throw new Error(permission.reason);
     }
     if (
+      action === "kick" &&
+      !kickTargetEligibility(snapshot, String(payload.targetPlayerId)).allowed
+    ) {
+      throw new Error("Người chơi được chọn không hợp lệ.");
+    }
+    if (
       action === "nominate" &&
       !chancellorEligibility(snapshot, String(payload.targetPlayerId)).allowed
     ) {
@@ -376,7 +399,7 @@ export class RoomClient {
       throw new Error("Phản hồi veto không hợp lệ.");
     }
 
-    const pending = prepareCommand(snapshot, action);
+    const pending = prepareCommand(snapshot, action, payload);
     this.emit({ type: "pending", pending });
     this.actionTimer = setTimeout(() => {
       if (this.state().pendingAction?.localId === pending.localId) {
@@ -397,6 +420,58 @@ export class RoomClient {
       throw new Error(
         "Chưa xác định được yêu cầu đã gửi hay chưa. Hãy đồng bộ; không tự gửi lại.",
       );
+    }
+  }
+
+  async leave(): Promise<void> {
+    if (
+      this.departing ||
+      this.stopped ||
+      !this.client.connected ||
+      this.state().connection !== "online"
+    ) {
+      throw new Error(
+        "Chưa thể rời phòng ở máy chủ. Hãy kết nối lại rồi thử lại.",
+      );
+    }
+
+    // Invalidate reads/pushes before leaving so presence repair cannot join us back.
+    this.departing = true;
+    this.epoch++;
+    this.clearPoll();
+    this.requests.abort();
+    if (this.actionTimer) {
+      clearTimeout(this.actionTimer);
+    }
+    this.connection("leaving");
+    const signal = AbortSignal.any([
+      this.lifetime.signal,
+      AbortSignal.timeout(ACTION_TIMEOUT_MS),
+    ]);
+    try {
+      this.client.publish({
+        destination: `/app/room/${this.identity.roomCode}/leave`,
+        headers: {
+          "X-Session-Token": this.identity.sessionToken,
+          "content-type": "application/json",
+        },
+        body: "{}",
+      });
+      await waitForMembershipRemoval(
+        () =>
+          getRoomState(
+            this.identity.roomCode,
+            this.identity.sessionToken,
+            signal,
+          ),
+        signal,
+      );
+    } catch {
+      throw new Error(
+        "Chưa xác nhận được đã rời phòng. Phiên vẫn được giữ; hãy kết nối lại để kiểm tra. Yêu cầu không tự gửi lại.",
+      );
+    } finally {
+      await this.stop();
     }
   }
 

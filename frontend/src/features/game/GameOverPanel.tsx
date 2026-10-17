@@ -3,6 +3,7 @@ import { PhaseSummary } from "./PhaseSummary";
 import { PolicyBoard } from "./PolicyBoard";
 import { GameLog } from "./GameLog";
 import { LeaveButton } from "@/features/room/LeaveButton";
+import { KickPlayerButton } from "@/features/room/KickPlayerButton";
 const roleNames: Record<Role, string> = {
   HITLER: "Hitler",
   LIBERAL: "Tự do",
@@ -33,6 +34,7 @@ export function GameOverPanel({
               <li key={player.id}>
                 {player.nickname}:{" "}
                 {player.revealedRole && roleNames[player.revealedRole]}
+                <KickPlayerButton playerId={player.id} />
               </li>
             ))}
           </ul>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { PlayerView } from "@/lib/game/types";
 import { Button } from "@/components/ui/Button";
 import { StatusNotice } from "@/components/ui/StatusNotice";
+import { KickPlayerButton } from "./KickPlayerButton";
 export function Lobby({
   snapshot,
   enabled,
@@ -79,6 +80,7 @@ export function Lobby({
                 {player.isConnected ? "Đã kết nối" : "Mất kết nối"}
               </span>
             </span>
+            <KickPlayerButton playerId={player.id} />
           </li>
         ))}
       </ul>

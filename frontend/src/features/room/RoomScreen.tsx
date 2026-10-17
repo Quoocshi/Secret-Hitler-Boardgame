@@ -15,7 +15,7 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
 
   let content: React.ReactNode;
   if (!snapshot) {
-    const needsEntry = ["expired", "error", "duplicate"].includes(
+    const needsEntry = ["expired", "removed", "error", "duplicate"].includes(
       state.connection,
     );
     content = (
@@ -65,6 +65,10 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
         <LeaveButton
           onLeave={leave}
           disabled={state.connection === "leaving"}
+          localOnly={["expired", "removed", "duplicate"].includes(
+            state.connection,
+          )}
+          label={state.connection === "removed" ? "Về trang đầu" : "Rời phòng"}
         />
       </header>
       <ConnectionBanner
@@ -75,7 +79,9 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
       />
       <StatusNotice
         message={state.notice}
-        error={["error", "expired", "duplicate"].includes(state.connection)}
+        error={["error", "expired", "removed", "duplicate"].includes(
+          state.connection,
+        )}
       />
       {state.uncertainAction && (
         <Button

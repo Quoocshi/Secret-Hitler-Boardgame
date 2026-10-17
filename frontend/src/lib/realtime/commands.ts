@@ -33,28 +33,38 @@ export interface PendingAction {
   action: Action;
   startedAt: number;
   context: string;
+  targetPlayerId?: string;
 }
 
 export function prepareCommand(
   snapshot: PlayerView,
   action: Action,
+  payload: Record<string, unknown> = {},
 ): PendingAction {
   return {
     localId: crypto.randomUUID(),
     action,
     startedAt: Date.now(),
     context: actionContext(snapshot),
+    targetPlayerId:
+      action === "kick" ? String(payload.targetPlayerId) : undefined,
   };
 }
 
 export function actionContextEnded(
   snapshot: PlayerView,
   action: Action,
+  targetPlayerId?: string,
 ): boolean {
   const ownPlayer = snapshot.players.find(
     (player) => player.id === snapshot.myPlayerId,
   );
   switch (action) {
+    case "kick":
+      return (
+        !!targetPlayerId &&
+        !snapshot.players.some((player) => player.id === targetPlayerId)
+      );
     case "start":
       return snapshot.currentPhase !== "LOBBY";
     case "nominate":

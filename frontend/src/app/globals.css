@@ -328,6 +328,18 @@ input[aria-invalid="true"] {
   font-size: 10px;
   white-space: nowrap;
 }
+.player-kick {
+  padding: 6px 8px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.game-players .player-kick {
+  margin-top: 8px;
+}
+.lobby-players li > span:nth-child(2) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .lobby-footer {
   margin-top: 26px;
   padding-top: 22px;
