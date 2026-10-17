@@ -1,29 +1,92 @@
 import { useState } from "react";
-import type { Action, PlayerView } from "@/lib/game/types";
-import { executiveLabels } from "@/lib/game/labels";
+import type { Action, ExecutiveAction, PlayerView } from "@/lib/game/types";
+import { executiveLabels, policyLabels } from "@/lib/game/labels";
 import { executiveTargetEligibility } from "@/lib/game/permissions";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PolicyHand } from "./PolicyHand";
+
+function targetAction(power: ExecutiveAction): {
+  action: Action;
+  instructions: string;
+} | null {
+  switch (power) {
+    case "INVESTIGATE_LOYALTY":
+      return {
+        action: "investigate",
+        instructions:
+          "Chọn người để điều tra đảng phái. Kết quả chỉ hiển thị cho bạn trong lượt này.",
+      };
+    case "SPECIAL_ELECTION":
+      return {
+        action: "special-election",
+        instructions:
+          "Chọn người giữ chức Tổng thống cho lượt bầu cử đặc biệt.",
+      };
+    case "EXECUTION":
+      return {
+        action: "execute",
+        instructions:
+          "Chọn người bị xử bắn. Kiểm tra kỹ tên trước khi xác nhận.",
+      };
+    default:
+      return null;
+  }
+}
+
 export function ExecutiveActions({
-  snapshot: s,
+  snapshot,
   enabled,
+  completionEnabled,
   onAction,
 }: {
   snapshot: PlayerView;
   enabled: boolean;
+  completionEnabled: boolean;
   onAction: (action: Action, payload?: Record<string, unknown>) => void;
 }) {
-  const [selected, setSelected] = useState("");
-  const [confirm, setConfirm] = useState(false);
-  const target = s.players.find((p) => p.id === selected);
-  if (s.pendingExecutiveAction === "POLICY_PEEK") {
+  const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const power = snapshot.pendingExecutiveAction;
+
+  if (
+    power === "INVESTIGATE_LOYALTY" &&
+    snapshot.investigatedPlayerId &&
+    snapshot.investigatedPartyMembership
+  ) {
+    const investigatedPlayer = snapshot.players.find(
+      (player) => player.id === snapshot.investigatedPlayerId,
+    );
+    return (
+      <div data-testid="investigation-result">
+        <h3>Kết quả điều tra riêng</h3>
+        <p>
+          <strong>{investigatedPlayer?.nickname}</strong>:{" "}
+          {policyLabels[snapshot.investigatedPartyMembership]}
+        </p>
+        <Button
+          className="primary full"
+          disabled={!completionEnabled}
+          onClick={() => onAction("end-action")}
+        >
+          Đã xem kết quả
+        </Button>
+      </div>
+    );
+  }
+
+  if (power === "POLICY_PEEK") {
     return (
       <>
         <p>
-          Ba lá trên cùng của bộ rút, theo thứ tự. Chúng vẫn ở trong bộ rút.
+          Xem trước ba lá chính sách tiếp theo. Chỉ bạn nhìn thấy các lá này.
         </p>
-        <PolicyHand cards={s.handCards} />
+        <PolicyHand cards={snapshot.handCards} />
+        {snapshot.handCards.length !== 3 && (
+          <p role="status">
+            Chưa nhận đủ lá bài. Hãy tải lại trang để đồng bộ.
+          </p>
+        )}
         <Button
           className="primary full"
           disabled={!enabled}
@@ -34,58 +97,62 @@ export function ExecutiveActions({
       </>
     );
   }
-  const action: Action =
-    s.pendingExecutiveAction === "INVESTIGATE_LOYALTY"
-      ? "investigate"
-      : s.pendingExecutiveAction === "SPECIAL_ELECTION"
-        ? "special-election"
-        : "execute";
-  const label = executiveLabels[s.pendingExecutiveAction];
+
+  const decision = targetAction(power);
+  if (!decision) {
+    return <p>Không có quyền lực cần thực hiện.</p>;
+  }
+  const target = snapshot.players.find(
+    (player) => player.id === selectedPlayerId,
+  );
+  const targetIsEligible = executiveTargetEligibility(
+    snapshot,
+    selectedPlayerId,
+  ).allowed;
+  const label = executiveLabels[power];
+
   return (
     <>
-      <p>
-        {s.pendingExecutiveAction === "INVESTIGATE_LOYALTY"
-          ? "Chỉ bạn nhận được đảng phái của mục tiêu, không phải vai trò cụ thể."
-          : s.pendingExecutiveAction === "SPECIAL_ELECTION"
-            ? "Chọn Tổng thống cho chính phủ tiếp theo. Sau đó thứ tự thường tiếp tục."
-            : "Chọn một người bị loại khỏi ván. Lựa chọn này không thể đổi sau khi máy chủ xác nhận."}
-      </p>
+      <p>{decision.instructions}</p>
+      {power === "INVESTIGATE_LOYALTY" && (
+        <p>Chưa có kết quả điều tra trong lượt này.</p>
+      )}
       <label htmlFor="executive-target">Mục tiêu quyền lực</label>
       <select
         id="executive-target"
-        value={selected}
+        value={selectedPlayerId}
         disabled={!enabled}
-        onChange={(e) => setSelected(e.target.value)}
+        onChange={(event) => setSelectedPlayerId(event.target.value)}
       >
-        <option value="">Chọn mục tiêu</option>
-        {s.players.map((p) => {
-          const permission = executiveTargetEligibility(s, p.id);
+        <option value="">Chọn người chơi</option>
+        {snapshot.players.map((player) => {
+          const eligibility = executiveTargetEligibility(snapshot, player.id);
           return (
-            <option key={p.id} value={p.id} disabled={!permission.allowed}>
-              {p.nickname}
-              {permission.allowed ? "" : ` — ${permission.reason}`}
+            <option
+              key={player.id}
+              value={player.id}
+              disabled={!eligibility.allowed}
+            >
+              {player.nickname}
+              {eligibility.allowed ? "" : ` — ${eligibility.reason}`}
             </option>
           );
         })}
       </select>
       <Button
         className="primary full"
-        disabled={
-          !enabled ||
-          !target ||
-          !executiveTargetEligibility(s, selected).allowed
-        }
-        onClick={() => setConfirm(true)}
+        disabled={!enabled || !targetIsEligible}
+        onClick={() => setConfirmationOpen(true)}
       >
         {label}
       </Button>
-      {confirm && target && (
+      {confirmationOpen && target && (
         <ConfirmDialog
-          title={"Xác nhận " + label.toLowerCase()}
-          onCancel={() => setConfirm(false)}
+          title={`Xác nhận ${label.toLowerCase()}`}
+          onCancel={() => setConfirmationOpen(false)}
           onConfirm={() => {
-            setConfirm(false);
-            onAction(action, { targetPlayerId: selected });
+            setConfirmationOpen(false);
+            onAction(decision.action, { targetPlayerId: target.id });
           }}
         >
           <p>

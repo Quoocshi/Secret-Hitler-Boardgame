@@ -1,30 +1,44 @@
 import { defineConfig, devices } from "@playwright/test";
-const apiUrl = process.env.E2E_API_URL ?? "http://localhost:8081";
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+
+const apiUrl = process.env.E2E_API_URL ?? "http://localhost:18081";
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3100";
+const apiPort = Number(new URL(apiUrl).port);
+const frontendPort = Number(new URL(baseURL).port);
+process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
+
 export default defineConfig({
-  testDir: "./tests/e2e",
+  testDir: "./tests/e2e/legacy",
+  outputDir: "test-results/legacy",
   timeout: 120000,
   fullyParallel: false,
   workers: 1,
-  reporter: [["list"], ["html", { open: "never" }]],
-  use: { baseURL, trace: "off" },
+  reporter: [
+    ["list"],
+    ["json", { outputFile: "test-results/legacy/results.json" }],
+    ["html", { open: "never", outputFolder: "playwright-report" }],
+  ],
+  use: { baseURL, trace: "off", video: "off", screenshot: "off" },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "edge", use: { ...devices["Desktop Edge"], channel: "msedge" } },
   ],
   webServer: [
     {
-      command:
-        "powershell -NoProfile -ExecutionPolicy Bypass -File ../Backend/scripts/run-fixtures.ps1",
-      url: apiUrl + "/__test/health",
-      reuseExistingServer: !process.env.CI,
+      command: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-legacy-backend.ps1 -Port ${apiPort}`,
+      url: apiUrl + "/ws/info",
+      reuseExistingServer: false,
       timeout: 180000,
     },
     {
-      command: "npm run dev",
+      command: `npm run dev -- --port ${frontendPort}`,
       url: baseURL,
-      env: { NEXT_PUBLIC_API_URL: apiUrl, NEXT_PUBLIC_WS_URL: apiUrl + "/ws" },
-      reuseExistingServer: !process.env.CI,
+      env: {
+        E2E_DISABLE_HMR: "1",
+        VITE_API_URL: apiUrl,
+        VITE_WS_URL: apiUrl + "/ws",
+        DEBUG: "false",
+      },
+      reuseExistingServer: false,
       timeout: 120000,
     },
   ],

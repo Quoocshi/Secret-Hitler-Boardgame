@@ -12,12 +12,9 @@ function url(value: string, name: string): string {
   return value.replace(/\/$/, "");
 }
 export const config = {
-  apiUrl: url(
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080",
-    "API",
-  ),
+  apiUrl: url(import.meta.env.VITE_API_URL ?? "http://localhost:8080", "API"),
   wsUrl: url(
-    process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:8080/ws",
+    import.meta.env.VITE_WS_URL ?? "http://localhost:8080/ws",
     "WebSocket",
   ),
 };

@@ -1,41 +1,5 @@
 import type { PlayerView } from "@/lib/game/types";
-export const view = (overrides: Partial<PlayerView> = {}): PlayerView => ({
-  roomCode: "ABC234",
-  stateVersion: 1,
-  currentPhase: "LOBBY",
-  enactedLiberalPolicies: 0,
-  enactedFascistPolicies: 0,
-  electionTracker: 0,
-  drawDeckSize: 0,
-  discardDeckSize: 0,
-  currentPresidentId: null,
-  currentChancellorId: null,
-  nominatedChancellorId: null,
-  lastElectedPresidentId: null,
-  lastElectedChancellorId: null,
-  pendingExecutiveAction: "NONE",
-  winner: "NONE",
-  winReason: null,
-  players: [
-    {
-      id: "p1",
-      nickname: "An",
-      isAlive: true,
-      isHost: true,
-      isConnected: true,
-      isInvestigated: false,
-      hasVoted: false,
-      lastRevealedVote: null,
-    },
-  ],
-  gameLogs: [],
-  myPlayerId: "p1",
-  myRole: null,
-  knownAllyIds: [],
-  handCards: [],
-  investigatedPartyMembership: null,
-  vetoRequestedThisRound: false,
-  investigationResults: [],
-  ...overrides,
-});
-export const actionId = "c22d45f3-14c2-4e38-b1de-20f995b1a06f";
+import { legacyView } from "./legacy-view";
+
+export const view = (overrides: Partial<PlayerView> = {}): PlayerView =>
+  legacyView(overrides);

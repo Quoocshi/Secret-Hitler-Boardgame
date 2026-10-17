@@ -4,8 +4,9 @@ import { policyLabels } from "@/lib/game/labels";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PolicyHand } from "./PolicyHand";
+
 export function LegislativeActions({
-  snapshot: s,
+  snapshot,
   enabled,
   onAction,
 }: {
@@ -13,42 +14,48 @@ export function LegislativeActions({
   enabled: boolean;
   onAction: (action: Action, payload: Record<string, unknown>) => void;
 }) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const [confirm, setConfirm] = useState(false);
-  const discard = s.currentPhase === "LEGISLATIVE_PRESIDENT";
-  const label = discard ? "Bỏ lá đã chọn" : "Ban hành lá đã chọn";
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const discarding = snapshot.currentPhase === "LEGISLATIVE_PRESIDENT";
+  const expectedCards = discarding ? 3 : 2;
+  const action: Action = discarding ? "discard" : "enact";
+  const label = discarding ? "Bỏ lá đã chọn" : "Ban hành lá đã chọn";
+
   return (
     <>
       <p>
-        {discard
+        {discarding
           ? "Chọn 1 trong 3 lá để bỏ. Hai lá còn lại chuyển tới Thủ tướng."
           : "Chọn 1 trong 2 lá để ban hành. Lá còn lại sẽ bị bỏ."}
       </p>
+      {snapshot.handCards.length !== expectedCards && (
+        <p role="status">Chưa nhận đủ lá bài. Hãy tải lại trang để đồng bộ.</p>
+      )}
       <PolicyHand
-        cards={s.handCards}
-        selected={selected}
-        onSelect={setSelected}
+        cards={snapshot.handCards}
+        selected={selectedIndex}
+        onSelect={setSelectedIndex}
         enabled={enabled}
       />
       <Button
         className="primary full"
-        disabled={!enabled || selected === null}
-        onClick={() => setConfirm(true)}
+        disabled={!enabled || selectedIndex === null}
+        onClick={() => setConfirmationOpen(true)}
       >
         {label}
       </Button>
-      {confirm && selected !== null && (
+      {confirmationOpen && selectedIndex !== null && (
         <ConfirmDialog
-          title={discard ? "Xác nhận bỏ chính sách" : "Xác nhận ban hành"}
-          onCancel={() => setConfirm(false)}
+          title={discarding ? "Xác nhận bỏ chính sách" : "Xác nhận ban hành"}
+          onCancel={() => setConfirmationOpen(false)}
           onConfirm={() => {
-            setConfirm(false);
-            onAction(discard ? "discard" : "enact", { policyIndex: selected });
+            setConfirmationOpen(false);
+            onAction(action, { policyIndex: selectedIndex });
           }}
         >
           <p>
-            {discard ? "Bỏ" : "Ban hành"} lá ở vị trí {selected + 1}:{" "}
-            <strong>{policyLabels[s.handCards[selected]]}</strong>?
+            {discarding ? "Bỏ" : "Ban hành"} lá ở vị trí {selectedIndex + 1}:{" "}
+            <strong>{policyLabels[snapshot.handCards[selectedIndex]]}</strong>?
           </p>
         </ConfirmDialog>
       )}

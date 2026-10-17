@@ -1,21 +1,82 @@
-import type { Action } from "@/lib/game/types";
-import type { ClientRoomState, PendingAction } from "./room-reducer";
+import type { Action, PlayerView } from "@/lib/game/types";
+
+export const ACTION_DEADLINE_MS = 8000;
+const NOTICE_RENDER_BUDGET_MS = 1000;
+// Leave browser scheduling/rendering time so the notice appears within the eight-second ceiling.
+export const ACTION_TIMEOUT_MS = ACTION_DEADLINE_MS - NOTICE_RENDER_BUDGET_MS;
+
+/** A local selection boundary, not an authoritative server version. */
+export function actionContext(snapshot: PlayerView): string {
+  return JSON.stringify([
+    snapshot.currentPhase,
+    snapshot.currentPresidentId,
+    snapshot.currentChancellorId,
+    snapshot.nominatedChancellorId,
+    snapshot.pendingExecutiveAction,
+    snapshot.handCards,
+    snapshot.lastElectedPresidentId,
+    snapshot.lastElectedChancellorId,
+    snapshot.eligibleChancellorIds,
+    snapshot.investigatedPlayerId,
+    snapshot.investigatedPartyMembership,
+    snapshot.players.map((player) => [
+      player.id,
+      player.isAlive,
+      player.isInvestigated,
+      player.hasVoted,
+    ]),
+  ]);
+}
+
+export interface PendingAction {
+  localId: string;
+  action: Action;
+  startedAt: number;
+  context: string;
+}
+
 export function prepareCommand(
-  state: ClientRoomState,
+  snapshot: PlayerView,
   action: Action,
 ): PendingAction {
-  if (
-    state.connection !== "online" ||
-    !state.snapshot ||
-    state.pendingAction ||
-    state.snapshot.currentPhase === "GAME_OVER"
-  ) {
-    throw new Error("Hãy chờ phòng đồng bộ trước khi thao tác.");
-  }
   return {
-    actionId: crypto.randomUUID(),
+    localId: crypto.randomUUID(),
     action,
-    expectedVersion: state.snapshot.stateVersion,
     startedAt: Date.now(),
+    context: actionContext(snapshot),
   };
+}
+
+export function actionContextEnded(
+  snapshot: PlayerView,
+  action: Action,
+): boolean {
+  const ownPlayer = snapshot.players.find(
+    (player) => player.id === snapshot.myPlayerId,
+  );
+  switch (action) {
+    case "start":
+      return snapshot.currentPhase !== "LOBBY";
+    case "nominate":
+      return snapshot.currentPhase !== "NOMINATION";
+    case "vote":
+      return snapshot.currentPhase !== "VOTING" || ownPlayer?.hasVoted === true;
+    case "discard":
+      return snapshot.currentPhase !== "LEGISLATIVE_PRESIDENT";
+    case "enact":
+      return snapshot.currentPhase !== "LEGISLATIVE_CHANCELLOR";
+    case "veto/request":
+      return snapshot.currentPhase !== "LEGISLATIVE_CHANCELLOR";
+    case "veto/response":
+      return snapshot.currentPhase !== "VETO_CONFIRMATION";
+    case "investigate":
+      return (
+        snapshot.currentPhase !== "EXECUTIVE_ACTION" ||
+        !!(
+          snapshot.investigatedPlayerId && snapshot.investigatedPartyMembership
+        )
+      );
+    default:
+      return snapshot.currentPhase !== "EXECUTIVE_ACTION";
+  }
 }

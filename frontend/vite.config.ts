@@ -10,6 +10,8 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: true,
+    // Network-fault tests must not trigger the dev client's automatic page reload.
+    hmr: process.env.E2E_DISABLE_HMR === "1" ? false : undefined,
   },
   preview: { port: 3000, strictPort: true },
 });

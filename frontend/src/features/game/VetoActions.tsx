@@ -1,38 +1,57 @@
 import { useState } from "react";
-import type { Action, PlayerView } from "@/lib/game/types";
+import type { Action, PlayerView, VetoKnowledge } from "@/lib/game/types";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+
 export function VetoActions({
-  snapshot: s,
+  snapshot,
   enabled,
+  knowledge,
   onAction,
 }: {
   snapshot: PlayerView;
   enabled: boolean;
+  knowledge: VetoKnowledge;
   onAction: (action: Action, payload?: Record<string, unknown>) => void;
 }) {
-  const [confirm, setConfirm] = useState<
+  const [confirmation, setConfirmation] = useState<
     "request" | "approve" | "reject" | null
   >(null);
-  const responding = s.currentPhase === "VETO_CONFIRMATION";
-  if (!responding && s.enactedFascistPolicies < 5) {
+  if (snapshot.enactedFascistPolicies < 5) {
     return null;
   }
-  const title =
-    confirm === "request"
-      ? "Yêu cầu veto"
-      : confirm === "approve"
-        ? "Đồng ý veto"
-        : "Từ chối veto";
+  const responding = snapshot.currentPhase === "VETO_CONFIRMATION";
+  const confirmationMessages = {
+    request: "Gửi yêu cầu veto?",
+    approve: "Đồng ý hủy cả hai lá?",
+    reject: "Từ chối yêu cầu veto?",
+  };
+
+  function confirm() {
+    const decision = confirmation;
+    setConfirmation(null);
+    if (decision === "request") {
+      onAction("veto/request");
+    } else if (decision) {
+      onAction("veto/response", { approve: decision === "approve" });
+    }
+  }
+
   return (
     <div className="veto-actions">
       {responding ? (
         <>
-          <p>Thủ tướng đề nghị hủy cả hai lá. Đồng ý sẽ tăng bộ đếm bầu cử.</p>
-          <Button disabled={!enabled} onClick={() => setConfirm("approve")}>
+          <p>
+            Thủ tướng đề nghị hủy cả hai lá. Kết quả và bộ đếm sẽ theo trạng
+            thái máy chủ.
+          </p>
+          <Button
+            disabled={!enabled}
+            onClick={() => setConfirmation("approve")}
+          >
             Đồng ý veto
           </Button>
-          <Button disabled={!enabled} onClick={() => setConfirm("reject")}>
+          <Button disabled={!enabled} onClick={() => setConfirmation("reject")}>
             Từ chối veto
           </Button>
         </>
@@ -40,37 +59,25 @@ export function VetoActions({
         <>
           <Button
             className="full"
-            disabled={!enabled || s.vetoRequestedThisRound}
-            onClick={() => setConfirm("request")}
+            disabled={!enabled || knowledge === "observed-requested"}
+            onClick={() => setConfirmation("request")}
           >
             Yêu cầu veto
           </Button>
-          {s.vetoRequestedThisRound && (
-            <p>
-              Veto đã được yêu cầu trong lượt này. Hãy chọn một chính sách để
-              ban hành.
-            </p>
-          )}
+          <p>
+            {knowledge === "observed-requested"
+              ? "Đã quan sát yêu cầu veto trong lượt này. Hãy chọn một chính sách để ban hành."
+              : "Máy chủ quyết định veto còn khả dụng hay không; dữ liệu hiện tại không có cờ xác nhận riêng."}
+          </p>
         </>
       )}
-      {confirm && (
+      {confirmation && (
         <ConfirmDialog
-          title={title}
-          onCancel={() => setConfirm(null)}
-          onConfirm={() => {
-            const choice = confirm;
-            setConfirm(null);
-            onAction(
-              choice === "request" ? "veto/request" : "veto/response",
-              choice === "request" ? {} : { approve: choice === "approve" },
-            );
-          }}
+          title="Xác nhận veto"
+          onCancel={() => setConfirmation(null)}
+          onConfirm={confirm}
         >
-          <p>
-            {confirm === "reject"
-              ? "Thủ tướng sẽ phải ban hành một trong hai lá và không thể yêu cầu veto lần nữa trong lượt này."
-              : "Nếu Tổng thống đồng ý, cả hai lá bị hủy; bộ đếm bầu cử tăng và có thể kích hoạt chính sách tự động."}
-          </p>
+          <p>{confirmationMessages[confirmation]}</p>
         </ConfirmDialog>
       )}
     </div>

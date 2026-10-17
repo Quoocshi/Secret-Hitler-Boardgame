@@ -11,7 +11,7 @@ import { useNavigate } from "react-router";
 import { createRoom, joinRoom } from "@/lib/api/rooms";
 import { errorMessage } from "@/lib/api/errors";
 import type { Action, SessionIdentity } from "@/lib/game/types";
-import { RoomClient } from "@/lib/realtime/room-client";
+import { RoomClient, REQUEST_TIMEOUT_MS } from "@/lib/realtime/room-client";
 import {
   initialRoomState,
   roomReducer,
@@ -52,6 +52,7 @@ export function RoomSessionProvider({
   const navigate = useNavigate();
   const [state, reactDispatch] = useReducer(roomReducer, initialRoomState);
   const stateRef = useRef(state);
+  const retryInProgress = useRef(false);
   const [identity, setIdentity] = useState<SessionIdentity | null>(null);
   const [nickname, setNickname] = useState("");
   const [entryCode, setEntryCode] = useState("");
@@ -67,11 +68,11 @@ export function RoomSessionProvider({
     reactDispatch(event);
   }, []);
   const boot = useCallback(
-    (id: SessionIdentity) => {
+    (sessionIdentity: SessionIdentity) => {
       const generation = runtime.current.generation;
-      setIdentity(id);
+      setIdentity(sessionIdentity);
       const client = new RoomClient(
-        id,
+        sessionIdentity,
         generation,
         dispatch,
         () => stateRef.current,
@@ -83,13 +84,13 @@ export function RoomSessionProvider({
   );
   useEffect(() => {
     let cancelled = false;
-    const life = {
+    const sessionRuntime = {
       generation: ++runtime.current.generation,
       release: undefined as undefined | (() => void),
       client: undefined as RoomClient | undefined,
     };
-    runtime.current = life;
-    dispatch({ type: "reset", generation: life.generation });
+    runtime.current = sessionRuntime;
+    dispatch({ type: "reset", generation: sessionRuntime.generation });
     void (async () => {
       await Promise.resolve();
       try {
@@ -98,27 +99,29 @@ export function RoomSessionProvider({
           return;
         }
         setNickname(name);
-        const match = window.location.pathname.match(/^\/room\/([A-Z0-9]{6})$/);
+        const match = window.location.pathname.match(
+          /^\/room\/([A-Z0-9]{6})$/i,
+        );
         const code =
-          match?.[1] ??
+          match?.[1].toUpperCase() ??
           new URL(window.location.href).searchParams.get("room") ??
           "";
         setEntryCode(code);
         if (match) {
-          const id = readIdentity();
-          if (!id || id.roomCode !== code) {
+          const savedIdentity = readIdentity();
+          if (!savedIdentity || savedIdentity.roomCode !== code) {
             void navigate("/?room=" + encodeURIComponent(code), {
               replace: true,
             });
             return;
           }
-          life.release = await acquireRoomLock();
+          sessionRuntime.release = await acquireRoomLock();
           if (cancelled) {
-            life.release();
+            sessionRuntime.release();
             return;
           }
-          boot(id);
-          life.client = runtime.current.client;
+          boot(savedIdentity);
+          sessionRuntime.client = runtime.current.client;
         }
       } catch (error) {
         if (!cancelled) {
@@ -126,7 +129,7 @@ export function RoomSessionProvider({
             type: "connection",
             connection: "error",
             notice: errorMessage(error),
-            generation: life.generation,
+            generation: sessionRuntime.generation,
           });
         }
       } finally {
@@ -138,6 +141,8 @@ export function RoomSessionProvider({
     return () => {
       cancelled = true;
       const current = runtime.current;
+      // Invalidate async entry/retry work before releasing this provider's resources.
+      current.generation++;
       current.abort?.abort();
       void current.client?.stop().finally(() => current.release?.());
       if (!current.client) {
@@ -153,52 +158,68 @@ export function RoomSessionProvider({
     ) {
       return;
     }
-    const life = runtime.current;
+    const sessionRuntime = runtime.current;
     dispatch({
       type: "connection",
       connection: "restoring",
-      generation: life.generation,
+      generation: sessionRuntime.generation,
     });
     try {
-      life.release = await acquireRoomLock();
-      life.abort = new AbortController();
+      sessionRuntime.release = await acquireRoomLock();
+      sessionRuntime.abort = new AbortController();
       const token = crypto.randomUUID();
+      const entryGeneration = sessionRuntime.generation;
+      const entrySignal = AbortSignal.any([
+        sessionRuntime.abort.signal,
+        AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      ]);
       const response = code
-        ? await joinRoom(code, name, token, life.abort.signal)
-        : await createRoom(name, token, life.abort.signal);
-      const id: SessionIdentity = {
+        ? await joinRoom(code, name, token, entrySignal)
+        : await createRoom(name, token, entrySignal);
+      if (
+        runtime.current !== sessionRuntime ||
+        sessionRuntime.generation !== entryGeneration ||
+        sessionRuntime.abort.signal.aborted
+      ) {
+        return;
+      }
+      const newIdentity: SessionIdentity = {
         schemaVersion: 1,
         sessionToken: token,
         roomCode: response.roomCode,
         nickname: name,
       };
-      saveIdentity(id);
+      saveIdentity(newIdentity);
       setNickname(name);
-      boot(id);
-      void navigate("/room/" + id.roomCode);
+      boot(newIdentity);
+      void navigate("/room/" + newIdentity.roomCode);
     } catch (error) {
-      life.release?.();
-      life.release = undefined;
+      sessionRuntime.release?.();
+      sessionRuntime.release = undefined;
       dispatch({
         type: "connection",
         connection: "error",
         notice: errorMessage(error),
-        generation: life.generation,
+        generation: sessionRuntime.generation,
       });
     }
   }
   async function leave() {
-    const life = runtime.current;
+    if (!runtime.current.release && !identity) {
+      void navigate("/", { replace: true });
+      return;
+    }
+    const sessionRuntime = runtime.current;
     dispatch({
       type: "connection",
       connection: "leaving",
-      generation: life.generation,
+      generation: sessionRuntime.generation,
     });
-    life.abort?.abort();
-    await life.client?.stop();
-    life.release?.();
-    runtime.current = { generation: life.generation + 1 };
-    dispatch({ type: "reset", generation: life.generation + 1 });
+    sessionRuntime.abort?.abort();
+    await sessionRuntime.client?.stop();
+    sessionRuntime.release?.();
+    runtime.current = { generation: sessionRuntime.generation + 1 };
+    dispatch({ type: "reset", generation: sessionRuntime.generation + 1 });
     setIdentity(null);
     setEntryCode("");
     try {
@@ -208,20 +229,35 @@ export function RoomSessionProvider({
         type: "connection",
         connection: "error",
         notice: errorMessage(error),
-        generation: life.generation + 1,
+        generation: sessionRuntime.generation + 1,
       });
     }
     void navigate("/", { replace: true });
   }
+
   async function retry() {
-    if (!identity) {
+    if (!identity || retryInProgress.current || !runtime.current.release) {
       return;
     }
-    await runtime.current.client?.stop();
-    const life = runtime.current;
-    life.generation++;
-    dispatch({ type: "reset", generation: life.generation });
-    boot(identity);
+    const sessionRuntime = runtime.current;
+    const generation = sessionRuntime.generation;
+    retryInProgress.current = true;
+    try {
+      await sessionRuntime.client?.stop();
+      // A leave/unmount can finish while transport shutdown is still awaiting completion.
+      if (
+        runtime.current !== sessionRuntime ||
+        sessionRuntime.generation !== generation ||
+        stateRef.current.connection === "leaving"
+      ) {
+        return;
+      }
+      sessionRuntime.generation++;
+      dispatch({ type: "reset", generation: sessionRuntime.generation });
+      boot(identity);
+    } finally {
+      retryInProgress.current = false;
+    }
   }
   function send(action: Action, payload: Record<string, unknown> = {}) {
     try {

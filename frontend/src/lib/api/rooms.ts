@@ -1,6 +1,7 @@
 import { config } from "./config";
-import { ApiError } from "./errors";
+import { ApiError, legacyApiError } from "./errors";
 import { decodePlayerView, decodeRoomResponse } from "./decoders";
+
 async function request(path: string, init: RequestInit) {
   let response: Response;
   try {
@@ -8,15 +9,11 @@ async function request(path: string, init: RequestInit) {
       ...init,
       cache: "no-store",
     });
-  } catch (e) {
-    if (e instanceof DOMException && e.name === "AbortError") {
-      throw e;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw error;
     }
-    throw new ApiError(
-      "NETWORK_ERROR",
-      "Không thể kết nối máy chủ. Hãy kiểm tra mạng và thử lại.",
-      0,
-    );
+    throw new ApiError("NETWORK_ERROR", "Không thể kết nối máy chủ.", 0);
   }
   let body: unknown;
   try {
@@ -29,18 +26,11 @@ async function request(path: string, init: RequestInit) {
     );
   }
   if (!response.ok) {
-    const error = body as {
-      code?: string;
-      message?: string;
-    };
-    throw new ApiError(
-      error.code ?? "SERVER_ERROR",
-      error.message ?? "Không thể xử lý yêu cầu.",
-      response.status,
-    );
+    throw legacyApiError(body, response.status);
   }
   return body;
 }
+
 export async function createRoom(
   nickname: string,
   sessionToken: string,
@@ -55,6 +45,7 @@ export async function createRoom(
     }),
   );
 }
+
 export async function joinRoom(
   roomCode: string,
   nickname: string,
@@ -70,6 +61,7 @@ export async function joinRoom(
     }),
   );
 }
+
 export async function getRoomState(
   roomCode: string,
   sessionToken: string,

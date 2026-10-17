@@ -21,11 +21,12 @@ export default defineConfig([
     rules: {
       curly: ["error", "all"],
       "one-var": ["error", "never"],
+      "no-nested-ternary": "error",
     },
   },
   {
     files: ["src/**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks },
-    rules: {},
+    rules: reactHooks.configs.flat.recommended.rules,
   },
 ]);

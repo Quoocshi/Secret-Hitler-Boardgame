@@ -1,19 +1,23 @@
-import type { Action, PlayerView } from "@/lib/game/types";
+import type { Action, PlayerView, VetoKnowledge } from "@/lib/game/types";
+import { actionContext } from "@/lib/realtime/commands";
 import { PhaseSummary } from "./PhaseSummary";
-import { PolicyBoard } from "./PolicyBoard";
 import { PlayerList } from "./PlayerList";
-import { PrivateInfoPanel } from "./PrivateInfoPanel";
+import { PolicyBoard } from "./PolicyBoard";
 import { GameLog } from "./GameLog";
 import { PhaseActions } from "./PhaseActions";
+import { PrivateInfoPanel } from "./PrivateInfoPanel";
+
 export function GameScreen({
   snapshot,
   online,
   pending,
+  vetoKnowledge,
   onAction,
 }: {
   snapshot: PlayerView;
   online: boolean;
   pending: boolean;
+  vetoKnowledge: VetoKnowledge;
   onAction: (action: Action, payload?: Record<string, unknown>) => void;
 }) {
   return (
@@ -29,10 +33,11 @@ export function GameScreen({
         </div>
         <aside className="action-column">
           <PhaseActions
-            key={snapshot.stateVersion + ":" + online}
+            key={actionContext(snapshot) + online}
             snapshot={snapshot}
             online={online}
             pending={pending}
+            vetoKnowledge={vetoKnowledge}
             onAction={onAction}
           />
           <PrivateInfoPanel key={snapshot.roomCode} snapshot={snapshot} />
