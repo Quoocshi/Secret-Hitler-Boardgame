@@ -1,4 +1,5 @@
 import type { PlayerView } from "@/lib/game/types";
+import { gameAssets } from "@/lib/game/presentation";
 
 const LIBERAL_POLICY_LIMIT = 5;
 const FASCIST_POLICY_LIMIT = 6;
@@ -33,7 +34,10 @@ export function PolicyBoard({ snapshot }: { snapshot: PlayerView }) {
       </div>
       <div className="policy-track liberal-track">
         <div className="track-heading">
-          <h2>Tự do</h2>
+          <h2>
+            <img src={gameAssets.liberal} alt="" width="32" height="32" />
+            Tự do
+          </h2>
           <strong data-testid="liberal-count">
             {snapshot.enactedLiberalPolicies}/{LIBERAL_POLICY_LIMIT}
           </strong>
@@ -59,7 +63,10 @@ export function PolicyBoard({ snapshot }: { snapshot: PlayerView }) {
       </div>
       <div className="policy-track fascist-track">
         <div className="track-heading">
-          <h2>Phát xít</h2>
+          <h2>
+            <img src={gameAssets.fascist} alt="" width="32" height="32" />
+            Phát xít
+          </h2>
           <strong data-testid="fascist-count">
             {snapshot.enactedFascistPolicies}/{FASCIST_POLICY_LIMIT}
           </strong>
@@ -109,7 +116,16 @@ export function PolicyBoard({ snapshot }: { snapshot: PlayerView }) {
         </strong>
       </div>
       <div className="deck-counts">
-        <span>
+        <span className="deck-count-label">
+          <img
+            className="deck-stack-art"
+            src={gameAssets.cardStack}
+            alt=""
+            width="32"
+            height="38"
+            loading="lazy"
+            draggable={false}
+          />
           Bộ rút: <strong>{snapshot.drawDeckSize}</strong> lá
         </span>
         <span>

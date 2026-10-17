@@ -3,6 +3,7 @@ import { RoomEntryForm } from "@/features/room/RoomEntryForm";
 import { useRoomSession } from "@/features/room/RoomSessionProvider";
 import { LeaveButton } from "@/features/room/LeaveButton";
 import { StatusNotice } from "@/components/ui/StatusNotice";
+import { gameAssets } from "@/lib/game/presentation";
 
 export function HomePage() {
   const session = useRoomSession();
@@ -14,21 +15,29 @@ export function HomePage() {
       <section className="entry-card">
         <h2>Bạn đang giữ một phiên chơi</h2>
         <p>
-          Phòng <strong>{session.identity.roomCode}</strong>. Quay lại bàn chơi
-          hoặc xác nhận rời phòng để tạo/vào bàn khác.
-        </p>
-        <p>
-          <Link to={"/room/" + session.identity.roomCode}>Quay lại phòng</Link>
+          Phòng{" "}
+          <strong className="selectable-room-code">
+            {session.identity.roomCode}
+          </strong>
+          . Quay lại bàn chơi hoặc xác nhận rời phòng để tạo/vào bàn khác.
         </p>
         <StatusNotice
           message={session.state.notice}
           error={session.state.connection === "error"}
         />
-        <LeaveButton
-          onLeave={session.leave}
-          disabled={session.state.connection === "leaving"}
-          localOnly={session.state.connection === "expired"}
-        />
+        <div className="entry-session-actions">
+          <Link
+            className="button primary"
+            to={"/room/" + session.identity.roomCode}
+          >
+            Quay lại phòng
+          </Link>
+          <LeaveButton
+            onLeave={session.leave}
+            disabled={session.state.connection === "leaving"}
+            localOnly={session.state.connection === "expired"}
+          />
+        </div>
       </section>
     );
   } else {
@@ -70,6 +79,24 @@ export function HomePage() {
         </p>
       </section>
       {entryContent}
+      <div className="entry-tabletop" aria-hidden="true">
+        <img
+          className="entry-tabletop-cards"
+          src={gameAssets.tabletop}
+          alt=""
+          width="440"
+          height="440"
+          draggable={false}
+        />
+        <img
+          className="entry-tabletop-seal"
+          src={gameAssets.seal}
+          alt=""
+          width="80"
+          height="80"
+          draggable={false}
+        />
+      </div>
     </main>
   );
 }

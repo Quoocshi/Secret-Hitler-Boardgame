@@ -1,9 +1,31 @@
 # Danh sách hình ảnh cho UI
 
 Mục tiêu: tăng cảm giác board game trên nền giấy ấm, giữ chữ tiếng Việt dễ đọc.
-Giữ palette và font trong `../../DESIGN.md`. Danh sách này là brief để chuẩn bị
-asset, chưa phải ảnh đã có trong source. Trang tổng kết hiện hoạt động đầy đủ
-bằng HTML/CSS, không chờ các ảnh này và không hiển thị ảnh placeholder hỏng.
+Giữ palette và font trong `../../DESIGN.md`. Bộ asset đã được upload vào
+`frontend/public/images/`; bảng bên dưới giữ lại brief và kích thước mục tiêu
+cho các lần bổ sung tiếp theo. Chữ, tên vai trò và nút vẫn được dựng bằng HTML/CSS.
+
+## Asset đã tích hợp
+
+| Asset hiện có                                                            | Vị trí sử dụng                                                                             |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `paper-tile.webp`                                                        | Nền giấy của ứng dụng, có màu nền dự phòng khi ảnh không tải được                          |
+| `office-president.svg`, `office-chancellor.svg`                          | Tóm tắt chức vụ và nhãn bên cạnh tên người chơi                                            |
+| `faction-liberal.svg`, `faction-fascist.svg.svg`                         | Tiêu đề hai phe trên bàn và biểu tượng lá chính sách; giữ đúng tên file được upload        |
+| `vote-ja.svg`, `vote-nein.svg`                                           | Hai nút bỏ phiếu, đi kèm nhãn chữ                                                          |
+| `role-back.webp`                                                         | Mặt úp ở khu vực thông tin riêng                                                           |
+| `role-liberal-1/2/3.webp`, `role-fascist-1/2/3.webp`, `role-hitler.webp` | Ảnh vai trò riêng khi chủ nhân bấm xem; chân dung tổng kết chỉ khi BE đã công khai vai trò |
+| `item-cluster-1.webp`                                                    | Minh họa giấy và phong bì trong phòng chờ                                                  |
+
+Bổ sung trang trí: `item-cluster-2.webp` và `item-red-seal.webp` ở trang vào
+phòng; `item-cluster-3.webp` bên cạnh tiêu đề tổng kết; `item-stack-card.webp`
+cạnh bộ đếm bộ rút. Các ảnh dùng alt rỗng, không bắt sự kiện chuột và luôn
+chiếm không gian riêng để không che nội dung hoặc nút.
+
+Đường dẫn được tập trung trong `src/lib/game/presentation.ts`. Các biến thể ảnh
+của cùng một vai trò được chọn ổn định theo ID người chơi, chỉ mang ý nghĩa
+minh họa. Không dùng chân dung phe trong danh sách công khai lúc ván đang diễn ra.
+Các item còn lại được giữ nguyên làm nguồn cho các lần cải thiện UI tiếp theo.
 
 ## Asset cần chuẩn bị
 

@@ -147,11 +147,16 @@ export async function actorPage(pages: Page[], playerId: string | null) {
 export async function nominate(pages: Page[], nomineeId?: string) {
   const snapshot = await ownState(pages[0]);
   const president = await actorPage(pages, snapshot.currentPresidentId);
-  const selector = president.getByLabel("Ứng viên Thủ tướng");
+  const selector = president.getByRole("combobox", {
+    name: "Ứng viên Thủ tướng",
+  });
+  await selector.click();
+  const options = president.locator('[role="option"][aria-disabled="false"]');
   const target =
-    nomineeId ??
-    (await selector.locator("option:enabled").nth(1).getAttribute("value"));
-  await selector.selectOption(target!);
+    nomineeId ?? (await options.first().getAttribute("data-player-id"));
+  await president
+    .locator(`[role="option"][data-player-id="${target}"]`)
+    .click();
   await confirm(president, "Đề cử");
   for (const page of pages) {
     await expect(page.getByTestId("phase")).toHaveAttribute(

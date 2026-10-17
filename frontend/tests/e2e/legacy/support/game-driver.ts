@@ -167,14 +167,15 @@ async function executiveAction(
   const action = powerActions[power];
   actions.add(action);
   if (action === "investigate") {
-    await expect(president.getByTestId("investigation-result")).toBeVisible();
+    const resultSelector = `.game-players [data-player-id="${target.id}"] [data-testid="investigation-result"]`;
+    await expect(president.locator(resultSelector)).toBeVisible();
     expect(
       (await ownState(pages[0])).players.find(
         (player) => player.id === target.id,
       )?.isInvestigated,
     ).toBe(true);
     for (const page of pages.filter((page) => page !== president)) {
-      await expect(page.getByTestId("investigation-result")).toHaveCount(0);
+      await expect(page.locator(resultSelector)).toHaveCount(0);
     }
     await president
       .getByRole("button", { name: "Đã xem kết quả", exact: true })

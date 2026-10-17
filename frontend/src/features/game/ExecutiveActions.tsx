@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Action, ExecutiveAction, PlayerView } from "@/lib/game/types";
-import { executiveLabels, policyLabels } from "@/lib/game/labels";
+import { executiveLabels } from "@/lib/game/labels";
 import { executiveTargetEligibility } from "@/lib/game/permissions";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -15,7 +15,7 @@ function targetAction(power: ExecutiveAction): {
       return {
         action: "investigate",
         instructions:
-          "Chọn người để điều tra đảng phái. Kết quả chỉ hiển thị cho bạn trong lượt này.",
+          "Chọn người để điều tra đảng phái. Kết quả riêng sẽ xuất hiện dưới tên người đó trong danh sách người chơi.",
       };
     case "SPECIAL_ELECTION":
       return {
@@ -54,15 +54,11 @@ export function ExecutiveActions({
     snapshot.investigatedPlayerId &&
     snapshot.investigatedPartyMembership
   ) {
-    const investigatedPlayer = snapshot.players.find(
-      (player) => player.id === snapshot.investigatedPlayerId,
-    );
     return (
-      <div data-testid="investigation-result">
-        <h3>Kết quả điều tra riêng</h3>
+      <div>
         <p>
-          <strong>{investigatedPlayer?.nickname}</strong>:{" "}
-          {policyLabels[snapshot.investigatedPartyMembership]}
+          Xem kết quả điều tra riêng dưới tên người chơi trong danh sách bên
+          trái.
         </p>
         <Button
           className="primary full"

@@ -35,6 +35,7 @@ interface SessionContext {
   leave: () => Promise<void>;
   send: (action: Action, payload?: Record<string, unknown>) => void;
   retry: () => Promise<void>;
+  dismissNotice: () => void;
 }
 const Context = createContext<SessionContext | null>(null);
 export function useRoomSession() {
@@ -83,6 +84,13 @@ export function RoomSessionProvider({
     stateRef.current = roomReducer(stateRef.current, event);
     reactDispatch(event);
   }, []);
+  const dismissNotice = useCallback(() => {
+    dispatch({
+      type: "notice",
+      notice: null,
+      generation: stateRef.current.generation,
+    });
+  }, [dispatch]);
   const boot = useCallback(
     (sessionIdentity: SessionIdentity) => {
       const generation = runtime.current.generation;
@@ -343,6 +351,7 @@ export function RoomSessionProvider({
         leave,
         send,
         retry,
+        dismissNotice,
       }}
     >
       {children}

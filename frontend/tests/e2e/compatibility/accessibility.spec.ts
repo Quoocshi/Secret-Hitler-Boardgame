@@ -10,9 +10,10 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await openMockRoom(page, mockView({ currentPhase: "NOMINATION" }));
-    const target = page.getByLabel("Ứng viên Thủ tướng");
+    const target = page.getByRole("combobox", { name: "Ứng viên Thủ tướng" });
     await target.focus();
-    await target.selectOption("p3");
+    await target.click();
+    await page.getByRole("option").filter({ hasText: "P3" }).click();
     const nominate = page.getByRole("button", { name: "Đề cử", exact: true });
     await nominate.focus();
     await page.keyboard.press("Enter");

@@ -10,6 +10,7 @@ import { VotingActions } from "./VotingActions";
 import { LegislativeActions } from "./LegislativeActions";
 import { VetoActions } from "./VetoActions";
 import { ExecutiveActions } from "./ExecutiveActions";
+import { awaitingPlayerIds } from "@/lib/game/presentation";
 
 const executiveCommands: Record<Exclude<ExecutiveAction, "NONE">, Action> = {
   POLICY_PEEK: "end-action",
@@ -116,8 +117,15 @@ export function PhaseActions({
     );
   }
   return (
-    <section className="panel action-panel">
-      <p className="eyebrow">LƯỢT CỦA BẠN</p>
+    <section
+      className="panel action-panel"
+      data-your-turn={awaitingPlayerIds(snapshot).includes(snapshot.myPlayerId)}
+    >
+      <p className="eyebrow">
+        {awaitingPlayerIds(snapshot).includes(snapshot.myPlayerId)
+          ? "ĐẾN LƯỢT BẠN"
+          : "THEO DÕI LƯỢT CHƠI"}
+      </p>
       <h2>Hành động</h2>
       {content}
     </section>

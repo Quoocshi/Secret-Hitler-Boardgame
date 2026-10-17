@@ -5,6 +5,7 @@ import { LeaveButton } from "@/features/room/LeaveButton";
 import { KickPlayerButton } from "@/features/room/KickPlayerButton";
 import { Button } from "@/components/ui/Button";
 import { actionPermission } from "@/lib/game/permissions";
+import { gameAssets, roleArtwork } from "@/lib/game/presentation";
 const roleNames: Record<Role, string> = {
   HITLER: "Hitler",
   LIBERAL: "Tự do",
@@ -46,27 +47,40 @@ export function GameOverPanel({
     <div className="results-screen" data-testid="phase" data-phase="GAME_OVER">
       <section data-testid="game-result" aria-labelledby="result-title">
         <header className="result-heading" data-winner={snapshot.winner}>
-          <p className="eyebrow">
-            TỔNG KẾT VÁN ĐẤU · PHÒNG {snapshot.roomCode}
-          </p>
-          <h1 id="result-title">{resultTitles[snapshot.winner]}</h1>
-          <p className="result-reason" data-testid="win-reason">
-            {snapshot.winReason ?? "Đang chờ máy chủ cung cấp kết quả ván đấu."}
-          </p>
-          <dl className="result-stats" aria-label="Thông tin cuối ván">
-            <div>
-              <dt>Chính sách Tự do</dt>
-              <dd>{snapshot.enactedLiberalPolicies} / 5</dd>
-            </div>
-            <div>
-              <dt>Chính sách Phát xít</dt>
-              <dd>{snapshot.enactedFascistPolicies} / 6</dd>
-            </div>
-            <div>
-              <dt>Còn trong phòng</dt>
-              <dd>{snapshot.players.length} người</dd>
-            </div>
-          </dl>
+          <div className="result-heading-copy">
+            <p className="eyebrow">
+              TỔNG KẾT VÁN ĐẤU · PHÒNG{" "}
+              <span className="selectable-room-code">{snapshot.roomCode}</span>
+            </p>
+            <h1 id="result-title">{resultTitles[snapshot.winner]}</h1>
+            <p className="result-reason" data-testid="win-reason">
+              {snapshot.winReason ??
+                "Đang chờ máy chủ cung cấp kết quả ván đấu."}
+            </p>
+            <dl className="result-stats" aria-label="Thông tin cuối ván">
+              <div>
+                <dt>Chính sách Tự do</dt>
+                <dd>{snapshot.enactedLiberalPolicies} / 5</dd>
+              </div>
+              <div>
+                <dt>Chính sách Phát xít</dt>
+                <dd>{snapshot.enactedFascistPolicies} / 6</dd>
+              </div>
+              <div>
+                <dt>Còn trong phòng</dt>
+                <dd>{snapshot.players.length} người</dd>
+              </div>
+            </dl>
+          </div>
+          <img
+            className="result-correspondence"
+            src={gameAssets.correspondence}
+            alt=""
+            width="200"
+            height="200"
+            loading="lazy"
+            draggable={false}
+          />
         </header>
 
         <div className="result-columns">
@@ -84,9 +98,16 @@ export function GameOverPanel({
                 {snapshot.players.map((player) => (
                   <li key={player.id}>
                     <span className="result-player-name">
-                      <span className="result-initial" aria-hidden="true">
-                        {player.nickname.slice(0, 1).toUpperCase()}
-                      </span>
+                      {player.revealedRole && (
+                        <img
+                          className="result-role-portrait"
+                          src={roleArtwork(player.revealedRole, player.id)}
+                          alt=""
+                          width="44"
+                          height="62"
+                          loading="lazy"
+                        />
+                      )}
                       <span>
                         <strong>
                           {player.nickname}
@@ -126,7 +147,9 @@ export function GameOverPanel({
             <p>Giữ mã phòng và những người bạn đang ở đây.</p>
             <div className="result-room-code">
               <span>Mã phòng</span>
-              <strong>{snapshot.roomCode}</strong>
+              <strong className="selectable-room-code">
+                {snapshot.roomCode}
+              </strong>
             </div>
             {currentPlayer?.isHost ? (
               <>

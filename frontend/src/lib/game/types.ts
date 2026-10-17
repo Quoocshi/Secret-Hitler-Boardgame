@@ -37,6 +37,7 @@ export type Action = (typeof actions)[number];
 export type Policy = "LIBERAL" | "FASCIST";
 export type Role = Policy | "HITLER";
 export type Vote = "JA" | "NEIN";
+export type PrivateInvestigations = Partial<Record<string, Policy>>;
 export type VetoKnowledge = "unknown" | "observed-requested";
 
 export interface PublicPlayer {
