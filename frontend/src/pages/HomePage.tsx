@@ -77,6 +77,14 @@ export function HomePage() {
         <p className="entry-footnote">
           5–10 người · Trình duyệt máy tính · Không cần tài khoản
         </p>
+        <a
+          className="entry-rules-link"
+          href="https://thegioiboardgame.vn/blogs/luat-boardgame/huong-dan-choi-secret-hitler-truy-tim-phat-xit-luat"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Hướng dẫn luật chơi <span>(mở tab mới)</span>
+        </a>
       </section>
       {entryContent}
       <div className="entry-tabletop" aria-hidden="true">
