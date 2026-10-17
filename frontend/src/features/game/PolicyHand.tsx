@@ -1,5 +1,6 @@
 import type { Policy } from "@/lib/game/types";
 import { policyLabels } from "@/lib/game/labels";
+import { gameAssets } from "@/lib/game/presentation";
 
 interface PolicyHandProps {
   cards: Policy[];
@@ -27,6 +28,14 @@ export function PolicyHand({
           return (
             <div key={index} data-testid="hand-card" className={cardClass}>
               <span>LÁ {cardNumber}</span>
+              <img
+                src={
+                  card === "LIBERAL" ? gameAssets.liberal : gameAssets.fascist
+                }
+                alt=""
+                width="36"
+                height="36"
+              />
               <strong>{policyLabels[card]}</strong>
             </div>
           );
@@ -43,6 +52,12 @@ export function PolicyHand({
             aria-label={`Lá ${cardNumber} — ${policyLabels[card]}`}
           >
             <span>LÁ {cardNumber}</span>
+            <img
+              src={card === "LIBERAL" ? gameAssets.liberal : gameAssets.fascist}
+              alt=""
+              width="36"
+              height="36"
+            />
             <strong>{policyLabels[card]}</strong>
             {isSelected && <small>Đã chọn</small>}
           </button>

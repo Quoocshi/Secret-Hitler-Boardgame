@@ -39,6 +39,43 @@ it("treats a local publish exception as uncertain without retrying", async () =>
   await room.client.stop();
 });
 
+it("unlocks changed votes on identical public snapshots without replay or timeout", async () => {
+  const room = await onlineRoom();
+  const snapshot = view({ currentPhase: "VOTING" });
+  snapshot.players[0].hasVoted = true;
+  room.push(snapshot);
+
+  room.client.send("vote", { vote: "NEIN" });
+  expect(room.state().pendingAction).not.toBeNull();
+  room.push(snapshot);
+  expect(room.state().pendingAction).toBeNull();
+  room.client.send("vote", { vote: "JA" });
+  room.push(snapshot);
+
+  await vi.advanceTimersByTimeAsync(8000);
+  expect(room.state().pendingAction).toBeNull();
+  expect(room.state().uncertainAction).toBeNull();
+  expect(room.socket.publish).toHaveBeenCalledTimes(2);
+  expect(room.state().notice).not.toContain("xác nhận");
+  await room.client.stop();
+});
+
+it("releases an uncertain vote after observing a recorded vote without resending", async () => {
+  const room = await onlineRoom();
+  room.client.send("vote", { vote: "JA" });
+  await vi.advanceTimersByTimeAsync(ACTION_TIMEOUT_MS);
+  expect(room.state().uncertainAction).not.toBeNull();
+
+  const snapshot = view({ currentPhase: "VOTING" });
+  snapshot.players[0].hasVoted = true;
+  room.push(snapshot);
+  expect(room.state().uncertainAction).toBeNull();
+  expect(room.socket.publish).toHaveBeenCalledOnce();
+  room.client.send("vote", { vote: "NEIN" });
+  expect(room.socket.publish).toHaveBeenCalledTimes(2);
+  await room.client.stop();
+});
+
 it("does not correlate a broker ERROR with a command rejection", async () => {
   const room = await onlineRoom();
   room.client.send("vote", { vote: "JA" });

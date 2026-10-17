@@ -7,8 +7,11 @@ import { GameOverPanel } from "@/features/game/GameOverPanel";
 import { StatusNotice } from "@/components/ui/StatusNotice";
 import { Button } from "@/components/ui/Button";
 
+const ROOM_UPDATE_NOTICE_DURATION_MS = 5000;
+
 export function RoomScreen({ roomCode }: { roomCode: string }) {
-  const { state, send, leave, retry } = useRoomSession();
+  const { state, send, leave, retry, dismissNotice } = useRoomSession();
+  const isRoomUpdateNotice = state.notice === "Bàn chơi đã cập nhật.";
   const snapshot = state.snapshot;
   const pending = !!(state.pendingAction || state.uncertainAction);
   const online = state.connection === "online";
@@ -47,6 +50,7 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
     content = (
       <GameScreen
         snapshot={snapshot}
+        privateInvestigations={state.privateInvestigations}
         online={online}
         pending={pending}
         vetoKnowledge={state.vetoKnowledge}
@@ -65,7 +69,10 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
       <header className="room-header">
         <span className="brand">SECRET HITLER</span>
         <span>
-          Phòng <strong data-testid="room-code">{roomCode}</strong>
+          Phòng{" "}
+          <strong className="selectable-room-code" data-testid="room-code">
+            {roomCode}
+          </strong>
         </span>
         <span className="connection" data-testid="connection">
           {connectionLabels[state.connection]}
@@ -87,6 +94,10 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
       />
       <StatusNotice
         message={state.notice}
+        onDismiss={isRoomUpdateNotice ? dismissNotice : undefined}
+        autoDismissMs={
+          isRoomUpdateNotice ? ROOM_UPDATE_NOTICE_DURATION_MS : undefined
+        }
         error={["error", "expired", "removed", "duplicate"].includes(
           state.connection,
         )}
@@ -100,9 +111,11 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
           Đồng bộ trạng thái
         </Button>
       )}
-      {content}
+      <div className="room-content">{content}</div>
       {state.pendingAction && (
-        <p role="status">Đã gửi thao tác. Đang chờ bàn chơi cập nhật…</p>
+        <p className="room-action-status" role="status">
+          Đã gửi thao tác. Đang chờ bàn chơi cập nhật…
+        </p>
       )}
     </main>
   );

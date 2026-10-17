@@ -28,7 +28,8 @@ test("FE mock: a stale confirmation closes when its action context changes", asy
     page,
     mockView({ currentPhase: "NOMINATION" }),
   );
-  await page.getByLabel("Ứng viên Thủ tướng").selectOption("p3");
+  await page.getByRole("combobox", { name: "Ứng viên Thủ tướng" }).click();
+  await page.getByRole("option").filter({ hasText: "P3" }).click();
   await page.getByRole("button", { name: "Đề cử", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   room.update(

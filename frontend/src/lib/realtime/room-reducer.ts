@@ -1,4 +1,9 @@
-import type { PlayerView, VetoKnowledge } from "@/lib/game/types";
+import type {
+  PlayerView,
+  PrivateInvestigations,
+  VetoKnowledge,
+} from "@/lib/game/types";
+import { rememberPrivateInvestigations } from "@/lib/game/investigations";
 import { actionContextEnded, type PendingAction } from "./commands";
 
 export type Connection =
@@ -22,6 +27,7 @@ export interface ClientRoomState {
   viewRevision: number;
   vetoKnowledge: VetoKnowledge;
   notice: string | null;
+  privateInvestigations: PrivateInvestigations;
 }
 export const initialRoomState: ClientRoomState = {
   generation: 0,
@@ -32,6 +38,7 @@ export const initialRoomState: ClientRoomState = {
   viewRevision: 0,
   vetoKnowledge: "unknown",
   notice: null,
+  privateInvestigations: {},
 };
 export type RoomEvent =
   | { type: "reset"; generation: number }
@@ -88,6 +95,7 @@ export function roomReducer(
         return {
           ...state,
           snapshot: null,
+          privateInvestigations: {},
           connection: "error",
           notice: "Danh tính phòng không khớp.",
         };
@@ -96,12 +104,18 @@ export function roomReducer(
         JSON.stringify(previous) !== JSON.stringify(event.snapshot);
       const contextEnded =
         !!state.pendingAction &&
-        changed &&
+        // Changing a secret vote leaves the public DTO identical: hasVoted
+        // stays true. A fresh snapshot can release the local lock without
+        // claiming that the server confirmed the selected vote value.
+        (changed || state.pendingAction.action === "vote") &&
         actionContextEnded(
           event.snapshot,
           state.pendingAction.action,
           state.pendingAction.targetPlayerId,
         );
+      const uncertainVoteResolved =
+        state.uncertainAction?.action === "vote" &&
+        actionContextEnded(event.snapshot, "vote");
       let vetoKnowledge = state.vetoKnowledge;
       if (event.snapshot.currentPhase === "VETO_CONFIRMATION") {
         vetoKnowledge = "observed-requested";
@@ -116,10 +130,18 @@ export function roomReducer(
       return {
         ...state,
         snapshot: event.snapshot,
+        privateInvestigations: rememberPrivateInvestigations(
+          state.privateInvestigations,
+          event.snapshot,
+        ),
         viewRevision: state.viewRevision + Number(changed),
         vetoKnowledge,
         pendingAction: contextEnded ? null : state.pendingAction,
-        notice: contextEnded ? "Bàn chơi đã cập nhật." : state.notice,
+        uncertainAction: uncertainVoteResolved ? null : state.uncertainAction,
+        notice:
+          contextEnded || uncertainVoteResolved
+            ? "Bàn chơi đã cập nhật."
+            : state.notice,
       };
     }
   }

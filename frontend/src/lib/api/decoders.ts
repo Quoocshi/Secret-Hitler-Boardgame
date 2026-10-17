@@ -188,7 +188,6 @@ export function decodePlayerView(input: unknown): PlayerView {
     "gameLogs",
     "myPlayerId",
     "myRole",
-    "knownAllyIds",
   ];
   const canSeeInvestigation =
     ownPlayerIsAlive &&
@@ -199,6 +198,12 @@ export function decodePlayerView(input: unknown): PlayerView {
   // Ignore unknown root fields. In particular, stale executive cards never enter UI state.
   return {
     ...Object.fromEntries(keys.map((key) => [key, view[key]])),
+    // Hitler knows teammates only at tables with at most six players.
+    // Eliminated players still count toward the table size.
+    knownAllyIds:
+      view.myRole === "HITLER" && players.length >= 7
+        ? []
+        : [...(view.knownAllyIds as string[])],
     players,
     investigatedPlayerId: canSeeInvestigation ? investigatedPlayerId : null,
     investigatedPartyMembership: canSeeInvestigation

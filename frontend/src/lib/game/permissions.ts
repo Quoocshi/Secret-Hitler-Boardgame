@@ -17,25 +17,23 @@ export function chancellorEligibility(
   if (!player?.isAlive) {
     return denied("Người chơi đã bị loại.");
   }
-  if (
-    snapshot.eligibleChancellorIds &&
-    !snapshot.eligibleChancellorIds.includes(playerId)
-  ) {
-    return denied("Người chơi không nằm trong danh sách ứng viên của máy chủ.");
-  }
   if (playerId === snapshot.currentPresidentId) {
-    return denied("Tổng thống không thể tự đề cử.");
+    return denied("Tổng thống hiện tại");
   }
   if (playerId === snapshot.lastElectedChancellorId) {
-    return denied("Thủ tướng vừa được bầu không đủ điều kiện.");
+    return denied("Thủ tướng lượt trước");
   }
   const aliveCount = snapshot.players.filter(
     (candidate) => candidate.isAlive,
   ).length;
   if (aliveCount > 5 && playerId === snapshot.lastElectedPresidentId) {
-    return denied(
-      "Tổng thống vừa được bầu không đủ điều kiện khi còn hơn 5 người.",
-    );
+    return denied("Tổng thống lượt trước");
+  }
+  if (
+    snapshot.eligibleChancellorIds &&
+    !snapshot.eligibleChancellorIds.includes(playerId)
+  ) {
+    return denied("Chưa đủ điều kiện đề cử");
   }
   return allowed;
 }

@@ -3,6 +3,7 @@ import type { PlayerView } from "@/lib/game/types";
 import { chancellorEligibility } from "@/lib/game/permissions";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ChancellorPicker } from "./ChancellorPicker";
 export function NominationActions({
   snapshot,
   enabled,
@@ -19,28 +20,12 @@ export function NominationActions({
   );
   return (
     <>
-      <label htmlFor="nominee">Ứng viên Thủ tướng</label>
-      <select
-        id="nominee"
+      <ChancellorPicker
+        snapshot={snapshot}
         value={selectedPlayerId}
-        onChange={(event) => setSelectedPlayerId(event.target.value)}
-        disabled={!enabled}
-      >
-        <option value="">Chọn người đủ điều kiện</option>
-        {snapshot.players.map((player) => {
-          const permission = chancellorEligibility(snapshot, player.id);
-          return (
-            <option
-              key={player.id}
-              value={player.id}
-              disabled={!permission.allowed}
-            >
-              {player.nickname}
-              {permission.allowed ? "" : ` — ${permission.reason}`}
-            </option>
-          );
-        })}
-      </select>
+        onChange={setSelectedPlayerId}
+        enabled={enabled}
+      />
       <Button
         className="primary full"
         disabled={
