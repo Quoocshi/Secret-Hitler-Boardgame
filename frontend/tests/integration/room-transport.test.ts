@@ -1,18 +1,57 @@
-import { expect,it } from "vitest";
-import { initialRoomState,roomReducer } from "@/lib/realtime/room-reducer";
-import { view,actionId } from "../support/view";
-it("ignores an older GET arriving after a push and callbacks from an old room",()=>{
- const live=roomReducer(initialRoomState,{type:"snapshot",snapshot:view({stateVersion:4}),generation:0});
- expect(roomReducer(live,{type:"snapshot",snapshot:view({stateVersion:2}),generation:0}).snapshot?.stateVersion).toBe(4);
- expect(roomReducer(live,{type:"snapshot",snapshot:view({stateVersion:9}),generation:3})).toEqual(live);
+import { expect, it } from "vitest";
+import { initialRoomState, roomReducer } from "@/lib/realtime/room-reducer";
+import { prepareCommand } from "@/lib/realtime/commands";
+import { view } from "../support/view";
+
+it("ignores obsolete generations and identical polls do not advance local revision", () => {
+  const snapshot = view();
+  const state = roomReducer(initialRoomState, {
+    type: "snapshot",
+    snapshot,
+    generation: 0,
+  });
+  expect(
+    roomReducer(state, { type: "snapshot", snapshot, generation: 5 }),
+  ).toBe(state);
+  expect(
+    roomReducer(state, { type: "snapshot", snapshot, generation: 0 })
+      .viewRevision,
+  ).toBe(1);
 });
-it("waits for matching ACK and rendered snapshot version in either delivery order",()=>{
- let state=roomReducer(initialRoomState,{type:"snapshot",snapshot:view(),generation:0});
- state=roomReducer(state,{type:"pending",pending:{actionId,action:"vote",expectedVersion:1,startedAt:0},generation:0});
- state=roomReducer(state,{type:"result",result:{actionId:"bb2d45f3-14c2-4e38-b1de-20f995b1a06f",action:"vote",status:"ACCEPTED",code:null,message:null,stateVersion:2},generation:0});
- expect(state.pendingAction).not.toBeNull();
- state=roomReducer(state,{type:"result",result:{actionId,action:"vote",status:"ACCEPTED",code:null,message:null,stateVersion:2},generation:0});
- expect(state.pendingAction).not.toBeNull();
- state=roomReducer(state,{type:"snapshot",snapshot:view({stateVersion:2}),generation:0});
- expect(state.pendingAction).toBeNull(); expect(state.notice).toContain("xác nhận");
+
+it("does not treat unrelated membership changes as a command acknowledgement", () => {
+  const snapshot = view({ currentPhase: "VOTING" });
+  let state = roomReducer(initialRoomState, {
+    type: "snapshot",
+    snapshot,
+    generation: 0,
+  });
+  const pending = prepareCommand(snapshot, "vote");
+  state = roomReducer(state, { type: "pending", pending, generation: 0 });
+  const changed = view({
+    currentPhase: "VOTING",
+    gameLogs: ["An unrelated event"],
+  });
+  state = roomReducer(state, {
+    type: "snapshot",
+    snapshot: changed,
+    generation: 0,
+  });
+  expect(state.pendingAction).toBe(pending);
+  expect(state.notice ?? "").not.toContain("xác nhận");
+});
+
+it("removes private data on identity mismatch", () => {
+  const state = roomReducer(initialRoomState, {
+    type: "snapshot",
+    snapshot: view(),
+    generation: 0,
+  });
+  const result = roomReducer(state, {
+    type: "snapshot",
+    snapshot: view({ myPlayerId: "other" }),
+    generation: 0,
+  });
+  expect(result.snapshot).toBeNull();
+  expect(result.connection).toBe("error");
 });

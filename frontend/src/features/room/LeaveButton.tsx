@@ -1,8 +1,39 @@
-"use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-export function LeaveButton({onLeave,disabled=false,label="Rời phòng"}:{onLeave:()=>Promise<void>;disabled?:boolean;label?:string}) {
- const [confirm,setConfirm]=useState(false);
- return <><Button disabled={disabled} onClick={()=>setConfirm(true)}>{label}</Button>{confirm&&<ConfirmDialog title="Rời bàn chơi?" onCancel={()=>setConfirm(false)} onConfirm={()=>{setConfirm(false);void onLeave();}}><p>Bạn sẽ ngắt kết nối khỏi bàn chơi. Những người còn lại vẫn có thể theo dõi ván.</p></ConfirmDialog>}</>;
+export function LeaveButton({
+  onLeave,
+  disabled = false,
+  label = "Rời phòng",
+  localOnly = false,
+}: {
+  onLeave: () => Promise<void>;
+  disabled?: boolean;
+  label?: string;
+  localOnly?: boolean;
+}) {
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  return (
+    <>
+      <Button disabled={disabled} onClick={() => setConfirmationOpen(true)}>
+        {label}
+      </Button>
+      {confirmationOpen && (
+        <ConfirmDialog
+          title="Rời bàn chơi?"
+          onCancel={() => setConfirmationOpen(false)}
+          onConfirm={() => {
+            setConfirmationOpen(false);
+            void onLeave();
+          }}
+        >
+          <p>
+            {localOnly
+              ? "Phiên này không còn tham gia phòng. Bạn sẽ trở về trang đầu."
+              : "Bạn sẽ rời phòng và bị xóa khỏi danh sách thành viên, không thể vào lại ván đang chơi. Nếu còn dưới 5 thành viên, ván sẽ dừng. Bạn chỉ có thể tham gia lại như người mới khi phòng đang chờ."}
+          </p>
+        </ConfirmDialog>
+      )}
+    </>
+  );
 }

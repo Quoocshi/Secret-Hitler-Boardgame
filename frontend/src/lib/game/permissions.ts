@@ -1,35 +1,184 @@
-import type { Action,PlayerView } from "./types";
-export interface Permission {allowed:boolean;reason:string;}
-const yes:Permission={allowed:true,reason:""};
-const no=(reason:string):Permission=>({allowed:false,reason});
-export function chancellorEligibility(s:PlayerView,id:string):Permission {
- const player=s.players.find(p=>p.id===id);if(!player || !player.isAlive)return no("Người chơi đã bị loại.");
- if(id===s.currentPresidentId)return no("Tổng thống không thể tự đề cử.");
- if(id===s.lastElectedChancellorId)return no("Thủ tướng chính phủ vừa được bầu không đủ điều kiện.");
- if(s.players.filter(p=>p.isAlive).length>5 && id===s.lastElectedPresidentId)return no("Tổng thống chính phủ vừa được bầu không đủ điều kiện khi còn hơn 5 người.");
- return yes;
+import type { Action, PlayerView, VetoKnowledge } from "./types";
+
+export interface Permission {
+  allowed: boolean;
+  reason: string;
 }
-export function actionPermission(s:PlayerView,action:Action,online:boolean,pending:boolean):Permission {
- if(!online)return no("Đang chờ kết nối và đồng bộ.");
- if(pending)return no("Đang chờ máy chủ xác nhận thao tác trước.");
- const me=s.players.find(p=>p.id===s.myPlayerId);if(!me || !me.isAlive)return no("Bạn đã bị loại và chỉ có thể theo dõi.");
- if(s.currentPhase==="GAME_OVER")return no("Ván đã kết thúc.");
- if(action==="start")return s.currentPhase==="LOBBY"&&me.isHost&&s.players.length>=5&&s.players.length<=10?yes:no("Chỉ chủ phòng có thể bắt đầu với 5–10 người.");
- if(action==="vote")return s.currentPhase==="VOTING"?yes:no("Chưa tới vòng bỏ phiếu.");
- if(action==="nominate")return s.currentPhase==="NOMINATION"&&s.myPlayerId===s.currentPresidentId?yes:no("Đang chờ Tổng thống đề cử.");
- const president=s.myPlayerId===s.currentPresidentId,chancellor=s.myPlayerId===s.currentChancellorId;
- if(action==="discard")return s.currentPhase==="LEGISLATIVE_PRESIDENT"&&president&&s.handCards.length===3?yes:no("Chỉ Tổng thống đang lập pháp có thể bỏ lá.");
- if(action==="enact")return s.currentPhase==="LEGISLATIVE_CHANCELLOR"&&chancellor&&s.handCards.length===2?yes:no("Chỉ Thủ tướng đang lập pháp có thể ban hành.");
- if(action==="veto/request")return s.currentPhase==="LEGISLATIVE_CHANCELLOR"&&chancellor&&s.enactedFascistPolicies>=5&&!s.vetoRequestedThisRound?yes:no(s.vetoRequestedThisRound?"Veto đã được yêu cầu trong lượt này.":"Veto mở từ 5 chính sách Phát xít.");
- if(action==="veto/response")return s.currentPhase==="VETO_CONFIRMATION"&&president?yes:no("Đang chờ Tổng thống phản hồi veto.");
- const powers:Partial<Record<Action,PlayerView["pendingExecutiveAction"]>>={"execute":"EXECUTION","investigate":"INVESTIGATE_LOYALTY","special-election":"SPECIAL_ELECTION","end-action":"POLICY_PEEK"};
- if(powers[action])return s.currentPhase==="EXECUTIVE_ACTION"&&president&&s.pendingExecutiveAction===powers[action]?yes:no("Quyền lực này chưa được giao cho bạn.");
- return no("Chưa tới giai đoạn thực hiện hành động này.");
+const allowed: Permission = { allowed: true, reason: "" };
+const denied = (reason: string): Permission => ({ allowed: false, reason });
+
+export function chancellorEligibility(
+  snapshot: PlayerView,
+  playerId: string,
+): Permission {
+  const player = snapshot.players.find(
+    (candidate) => candidate.id === playerId,
+  );
+  if (!player?.isAlive) {
+    return denied("Người chơi đã bị loại.");
+  }
+  if (
+    snapshot.eligibleChancellorIds &&
+    !snapshot.eligibleChancellorIds.includes(playerId)
+  ) {
+    return denied("Người chơi không nằm trong danh sách ứng viên của máy chủ.");
+  }
+  if (playerId === snapshot.currentPresidentId) {
+    return denied("Tổng thống không thể tự đề cử.");
+  }
+  if (playerId === snapshot.lastElectedChancellorId) {
+    return denied("Thủ tướng vừa được bầu không đủ điều kiện.");
+  }
+  const aliveCount = snapshot.players.filter(
+    (candidate) => candidate.isAlive,
+  ).length;
+  if (aliveCount > 5 && playerId === snapshot.lastElectedPresidentId) {
+    return denied(
+      "Tổng thống vừa được bầu không đủ điều kiện khi còn hơn 5 người.",
+    );
+  }
+  return allowed;
 }
-export function executiveTargetEligibility(s:PlayerView,id:string):Permission {
- const p=s.players.find(player=>player.id===id);
- if(!p||!p.isAlive)return no("Người chơi đã bị loại.");
- if(id===s.currentPresidentId)return no("Không thể chọn chính mình.");
- if(s.pendingExecutiveAction==="INVESTIGATE_LOYALTY"&&p.isInvestigated)return no("Người chơi đã được điều tra.");
- return yes;
+
+export function actionPermission(
+  snapshot: PlayerView,
+  action: Action,
+  online: boolean,
+  pending: boolean,
+  vetoKnowledge: VetoKnowledge = "unknown",
+): Permission {
+  if (!online) {
+    return denied("Đang chờ kết nối và đồng bộ.");
+  }
+  if (pending) {
+    return denied("Hãy đồng bộ hoặc chờ cập nhật thao tác trước.");
+  }
+  const currentPlayer = snapshot.players.find(
+    (player) => player.id === snapshot.myPlayerId,
+  );
+  // Resetting a finished room is available even when its host died in the game.
+  if (action === "restart") {
+    return snapshot.currentPhase === "GAME_OVER" &&
+      currentPlayer?.isHost &&
+      currentPlayer.isConnected
+      ? allowed
+      : denied(
+          "Chỉ chủ phòng đang kết nối mới có thể đưa ván đã kết thúc về phòng chờ.",
+        );
+  }
+  // Room management remains available to a host who has been eliminated or whose game ended.
+  if (action === "kick") {
+    return currentPlayer?.isHost && currentPlayer.isConnected
+      ? allowed
+      : denied(
+          "Chỉ chủ phòng đang kết nối mới có thể mời người khác rời phòng.",
+        );
+  }
+  if (!currentPlayer?.isAlive) {
+    return denied("Bạn đã bị loại và chỉ có thể theo dõi.");
+  }
+  if (!currentPlayer.isConnected) {
+    return denied("Đang khôi phục trạng thái tham gia.");
+  }
+  if (snapshot.currentPhase === "GAME_OVER") {
+    return denied("Ván đã kết thúc.");
+  }
+
+  const isPresident = snapshot.myPlayerId === snapshot.currentPresidentId;
+  const isChancellor = snapshot.myPlayerId === snapshot.currentChancellorId;
+  let canAct = false;
+  switch (action) {
+    case "start":
+      canAct =
+        snapshot.currentPhase === "LOBBY" &&
+        currentPlayer.isHost &&
+        snapshot.players.length >= 5 &&
+        snapshot.players.length <= 10;
+      break;
+    case "nominate":
+      canAct = snapshot.currentPhase === "NOMINATION" && isPresident;
+      break;
+    case "vote":
+      canAct = snapshot.currentPhase === "VOTING";
+      break;
+    case "discard":
+      canAct =
+        snapshot.currentPhase === "LEGISLATIVE_PRESIDENT" &&
+        isPresident &&
+        snapshot.handCards.length === 3;
+      break;
+    case "enact":
+      canAct =
+        snapshot.currentPhase === "LEGISLATIVE_CHANCELLOR" &&
+        isChancellor &&
+        snapshot.handCards.length === 2;
+      break;
+    case "veto/request":
+      canAct =
+        snapshot.currentPhase === "LEGISLATIVE_CHANCELLOR" &&
+        isChancellor &&
+        snapshot.enactedFascistPolicies >= 5 &&
+        vetoKnowledge !== "observed-requested";
+      break;
+    case "veto/response":
+      canAct = snapshot.currentPhase === "VETO_CONFIRMATION" && isPresident;
+      break;
+    case "end-action":
+      canAct =
+        snapshot.currentPhase === "EXECUTIVE_ACTION" &&
+        isPresident &&
+        ((snapshot.pendingExecutiveAction === "POLICY_PEEK" &&
+          snapshot.handCards.length === 3) ||
+          (snapshot.pendingExecutiveAction === "INVESTIGATE_LOYALTY" &&
+            !!snapshot.investigatedPlayerId &&
+            !!snapshot.investigatedPartyMembership));
+      break;
+    default: {
+      const requiredPower = {
+        execute: "EXECUTION",
+        investigate: "INVESTIGATE_LOYALTY",
+        "special-election": "SPECIAL_ELECTION",
+      }[action];
+      canAct =
+        snapshot.currentPhase === "EXECUTIVE_ACTION" &&
+        isPresident &&
+        snapshot.pendingExecutiveAction === requiredPower &&
+        (action !== "investigate" || !snapshot.investigatedPlayerId);
+    }
+  }
+  return canAct
+    ? allowed
+    : denied("Hành động chưa khả dụng ở lượt hiện tại hoặc chưa đủ dữ liệu.");
+}
+
+export function executiveTargetEligibility(
+  snapshot: PlayerView,
+  playerId: string,
+): Permission {
+  const target = snapshot.players.find((player) => player.id === playerId);
+  if (!target?.isAlive) {
+    return denied("Người chơi đã bị loại.");
+  }
+  if (playerId === snapshot.currentPresidentId) {
+    return denied("Không thể chọn chính mình.");
+  }
+  if (
+    snapshot.pendingExecutiveAction === "INVESTIGATE_LOYALTY" &&
+    target.isInvestigated
+  ) {
+    return denied("Người chơi đã được điều tra.");
+  }
+  return allowed;
+}
+
+export function kickTargetEligibility(
+  snapshot: PlayerView,
+  playerId: string,
+): Permission {
+  if (playerId === snapshot.myPlayerId) {
+    return denied("Không thể tự mời mình rời phòng.");
+  }
+  return snapshot.players.some((player) => player.id === playerId)
+    ? allowed
+    : denied("Người chơi không còn trong phòng.");
 }

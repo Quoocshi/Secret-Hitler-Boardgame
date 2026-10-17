@@ -1,24 +1,125 @@
-import type { Action,PlayerView } from "@/lib/game/types";
+import type {
+  Action,
+  ExecutiveAction,
+  PlayerView,
+  VetoKnowledge,
+} from "@/lib/game/types";
 import { actionPermission } from "@/lib/game/permissions";
 import { NominationActions } from "./NominationActions";
 import { VotingActions } from "./VotingActions";
 import { LegislativeActions } from "./LegislativeActions";
 import { VetoActions } from "./VetoActions";
 import { ExecutiveActions } from "./ExecutiveActions";
-export function PhaseActions({snapshot:s,online,pending,onAction}:{snapshot:PlayerView;online:boolean;pending:boolean;onAction:(action:Action,payload?:Record<string,unknown>)=>void}) {
- if(s.currentPhase==="GAME_OVER")return null;
- const me=s.players.find(p=>p.id===s.myPlayerId)!;const enabled=(action:Action)=>actionPermission(s,action,online,pending).allowed;
- const president=s.myPlayerId===s.currentPresidentId,chancellor=s.myPlayerId===s.currentChancellorId;
- let content:React.ReactNode=<p>Đang chờ người được chỉ định hoàn thành hành động.</p>;
- if(!me.isAlive)content=<p>Bạn đã bị loại. Bạn có thể tiếp tục theo dõi bàn chơi.</p>;
- else if(s.currentPhase==="NOMINATION"&&president)content=<NominationActions snapshot={s} enabled={enabled("nominate")} onNominate={id=>onAction("nominate",{targetPlayerId:id})}/>;
- else if(s.currentPhase==="VOTING")content=<VotingActions snapshot={s} enabled={enabled("vote")} onVote={vote=>onAction("vote",{vote})}/>;
- else if(s.currentPhase==="LEGISLATIVE_PRESIDENT"&&president)content=<LegislativeActions snapshot={s} enabled={enabled("discard")} onAction={onAction}/>;
- else if(s.currentPhase==="LEGISLATIVE_CHANCELLOR"&&chancellor)content=<><LegislativeActions snapshot={s} enabled={enabled("enact")} onAction={onAction}/><VetoActions snapshot={s} enabled={enabled("veto/request")} onAction={onAction}/></>;
- else if(s.currentPhase==="VETO_CONFIRMATION"&&president)content=<VetoActions snapshot={s} enabled={enabled("veto/response")} onAction={onAction}/>;
- else if(s.currentPhase==="EXECUTIVE_ACTION"&&president&&s.pendingExecutiveAction!=="NONE"){
-  const action:Action=s.pendingExecutiveAction==="POLICY_PEEK"?"end-action":s.pendingExecutiveAction==="EXECUTION"?"execute":s.pendingExecutiveAction==="SPECIAL_ELECTION"?"special-election":"investigate";
-  content=<ExecutiveActions snapshot={s} enabled={enabled(action)} onAction={onAction}/>;
- }
- return <section className="panel action-panel"><p className="eyebrow">LƯỢT CỦA BẠN</p><h2>Hành động</h2>{content}</section>;
+
+const executiveCommands: Record<Exclude<ExecutiveAction, "NONE">, Action> = {
+  POLICY_PEEK: "end-action",
+  EXECUTION: "execute",
+  SPECIAL_ELECTION: "special-election",
+  INVESTIGATE_LOYALTY: "investigate",
+};
+
+export function PhaseActions({
+  snapshot,
+  online,
+  pending,
+  vetoKnowledge,
+  onAction,
+}: {
+  snapshot: PlayerView;
+  online: boolean;
+  pending: boolean;
+  vetoKnowledge: VetoKnowledge;
+  onAction: (action: Action, payload?: Record<string, unknown>) => void;
+}) {
+  if (snapshot.currentPhase === "GAME_OVER") {
+    return null;
+  }
+  const currentPlayer = snapshot.players.find(
+    (player) => player.id === snapshot.myPlayerId,
+  )!;
+  const isActionEnabled = (action: Action) =>
+    actionPermission(snapshot, action, online, pending, vetoKnowledge).allowed;
+  const isPresident = snapshot.myPlayerId === snapshot.currentPresidentId;
+  const isChancellor = snapshot.myPlayerId === snapshot.currentChancellorId;
+  let content: React.ReactNode = (
+    <p>Đang chờ người được chỉ định hoàn thành hành động.</p>
+  );
+  if (!currentPlayer.isAlive) {
+    content = <p>Bạn đã bị loại. Bạn có thể tiếp tục theo dõi bàn chơi.</p>;
+  } else if (snapshot.currentPhase === "NOMINATION" && isPresident) {
+    content = (
+      <NominationActions
+        snapshot={snapshot}
+        enabled={isActionEnabled("nominate")}
+        onNominate={(playerId) =>
+          onAction("nominate", { targetPlayerId: playerId })
+        }
+      />
+    );
+  } else if (snapshot.currentPhase === "VOTING") {
+    content = (
+      <VotingActions
+        snapshot={snapshot}
+        enabled={isActionEnabled("vote")}
+        onVote={(vote) => onAction("vote", { vote })}
+      />
+    );
+  } else if (snapshot.currentPhase === "LEGISLATIVE_PRESIDENT" && isPresident) {
+    content = (
+      <LegislativeActions
+        snapshot={snapshot}
+        enabled={isActionEnabled("discard")}
+        onAction={onAction}
+      />
+    );
+  } else if (
+    snapshot.currentPhase === "LEGISLATIVE_CHANCELLOR" &&
+    isChancellor
+  ) {
+    content = (
+      <>
+        <LegislativeActions
+          snapshot={snapshot}
+          enabled={isActionEnabled("enact")}
+          onAction={onAction}
+        />
+        <VetoActions
+          snapshot={snapshot}
+          enabled={isActionEnabled("veto/request")}
+          knowledge={vetoKnowledge}
+          onAction={onAction}
+        />
+      </>
+    );
+  } else if (snapshot.currentPhase === "VETO_CONFIRMATION" && isPresident) {
+    content = (
+      <VetoActions
+        snapshot={snapshot}
+        enabled={isActionEnabled("veto/response")}
+        knowledge={vetoKnowledge}
+        onAction={onAction}
+      />
+    );
+  } else if (
+    snapshot.currentPhase === "EXECUTIVE_ACTION" &&
+    isPresident &&
+    snapshot.pendingExecutiveAction !== "NONE"
+  ) {
+    const action = executiveCommands[snapshot.pendingExecutiveAction];
+    content = (
+      <ExecutiveActions
+        snapshot={snapshot}
+        enabled={isActionEnabled(action)}
+        completionEnabled={isActionEnabled("end-action")}
+        onAction={onAction}
+      />
+    );
+  }
+  return (
+    <section className="panel action-panel">
+      <p className="eyebrow">LƯỢT CỦA BẠN</p>
+      <h2>Hành động</h2>
+      {content}
+    </section>
+  );
 }

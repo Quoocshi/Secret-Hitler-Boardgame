@@ -1,8 +1,59 @@
 import type { PlayerView } from "@/lib/game/types";
-import { phaseLabels,executiveLabels } from "@/lib/game/labels";
-export function PhaseSummary({snapshot:s}:{snapshot:PlayerView}) {
- const name=(id:string|null)=>s.players.find(p=>p.id===id)?.nickname??"Chưa có";
- const who=s.currentPhase==="LEGISLATIVE_CHANCELLOR"?name(s.currentChancellorId):name(s.currentPresidentId);
- const waiting=s.currentPhase==="VOTING"?"Đang chờ mọi người còn sống bỏ phiếu.":s.currentPhase==="GAME_OVER"?"Ván đã kết thúc.":`Đang chờ ${who}: ${s.currentPhase==="EXECUTIVE_ACTION"?executiveLabels[s.pendingExecutiveAction]:phaseLabels[s.currentPhase].toLowerCase()}.`;
- return <section className="phase-summary" data-testid="phase" data-phase={s.currentPhase}><p className="eyebrow">GIAI ĐOẠN HIỆN TẠI</p><h1>{phaseLabels[s.currentPhase]}</h1><p>{waiting}</p><div className="office-summary"><span>Tổng thống: <strong>{name(s.currentPresidentId)}</strong></span><span>Thủ tướng{s.currentPhase==="VOTING"?" được đề cử":""}: <strong>{name(s.nominatedChancellorId??s.currentChancellorId)}</strong></span></div></section>;
+import { phaseLabels, executiveLabels } from "@/lib/game/labels";
+
+function playerName(snapshot: PlayerView, playerId: string | null): string {
+  if (!playerId) {
+    return "Chưa có";
+  }
+  return (
+    snapshot.players.find((player) => player.id === playerId)?.nickname ??
+    "Đã rời phòng"
+  );
+}
+
+function waitingMessage(snapshot: PlayerView): string {
+  if (snapshot.currentPhase === "VOTING") {
+    return "Đang chờ mọi người còn sống bỏ phiếu.";
+  }
+  if (snapshot.currentPhase === "GAME_OVER") {
+    return "Ván đã kết thúc.";
+  }
+
+  const actingPlayerId =
+    snapshot.currentPhase === "LEGISLATIVE_CHANCELLOR"
+      ? snapshot.currentChancellorId
+      : snapshot.currentPresidentId;
+  const actionLabel =
+    snapshot.currentPhase === "EXECUTIVE_ACTION"
+      ? executiveLabels[snapshot.pendingExecutiveAction]
+      : phaseLabels[snapshot.currentPhase].toLowerCase();
+
+  return `Đang chờ ${playerName(snapshot, actingPlayerId)}: ${actionLabel}.`;
+}
+
+export function PhaseSummary({ snapshot }: { snapshot: PlayerView }) {
+  const chancellorId =
+    snapshot.nominatedChancellorId ?? snapshot.currentChancellorId;
+
+  return (
+    <section
+      className="phase-summary"
+      data-testid="phase"
+      data-phase={snapshot.currentPhase}
+    >
+      <p className="eyebrow">GIAI ĐOẠN HIỆN TẠI</p>
+      <h1>{phaseLabels[snapshot.currentPhase]}</h1>
+      <p>{waitingMessage(snapshot)}</p>
+      <div className="office-summary">
+        <span>
+          Tổng thống:{" "}
+          <strong>{playerName(snapshot, snapshot.currentPresidentId)}</strong>
+        </span>
+        <span>
+          Thủ tướng{snapshot.currentPhase === "VOTING" ? " được đề cử" : ""}:{" "}
+          <strong>{playerName(snapshot, chancellorId)}</strong>
+        </span>
+      </div>
+    </section>
+  );
 }

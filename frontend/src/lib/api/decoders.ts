@@ -1,44 +1,219 @@
-import { actions, executives, phases, roomCodePattern, uuidPattern, type CommandResult, type PlayerView, type RoomResponse } from "@/lib/game/types";
-export class SchemaError extends Error { constructor() { super("Dữ liệu phòng không hợp lệ. Hãy đồng bộ lại hoặc cập nhật ứng dụng."); } }
-function assert(value:unknown): asserts value { if (!value) throw new SchemaError(); }
-function object(v:unknown): Record<string,unknown> { assert(v !== null && typeof v==="object" && !Array.isArray(v)); return v as Record<string,unknown>; }
-const text=(v:unknown):v is string=>typeof v==="string" && v.length>0;
-const nullableText=(v:unknown)=>v===null || text(v);
-const one=(v:unknown,options:readonly string[])=>typeof v==="string" && options.includes(v);
-const count=(v:unknown,max=Number.MAX_SAFE_INTEGER)=>typeof v==="number" && Number.isSafeInteger(v) && v>=0 && v<=max;
-const array=(v:unknown,test:(v:unknown)=>boolean):v is unknown[]=>Array.isArray(v) && v.every(test);
-export function decodePlayerView(input:unknown):PlayerView {
- const v=object(input);
- assert(typeof v.roomCode==="string" && roomCodePattern.test(v.roomCode));
- assert(count(v.stateVersion) && one(v.currentPhase,phases) && one(v.pendingExecutiveAction,executives));
- assert(count(v.enactedLiberalPolicies,5) && count(v.enactedFascistPolicies,6) && count(v.electionTracker,3) && count(v.drawDeckSize,17) && count(v.discardDeckSize,17));
- assert(one(v.winner,["NONE","LIBERAL","FASCIST"]) && nullableText(v.winReason));
- assert(Array.isArray(v.players) && v.players.length>=1 && v.players.length<=10);
- const players=v.players.map(object);
- const ids=new Set(players.map(p=>p.id)); assert(ids.size===players.length);
- for(const p of players) {
-  assert(Object.keys(p).every(k=>["id","nickname","isAlive","isHost","isConnected","isInvestigated","hasVoted","lastRevealedVote"].includes(k)));
-  assert(text(p.id) && text(p.nickname) && !("role" in p) && !("sessionToken" in p) && !("partyMembership" in p));
-  for(const key of ["isAlive","isHost","isConnected","isInvestigated","hasVoted"]) assert(typeof p[key]==="boolean");
-  assert(p.lastRevealedVote===null || one(p.lastRevealedVote,["JA","NEIN"]));
- }
- assert(text(v.myPlayerId) && ids.has(v.myPlayerId));
- for(const key of ["currentPresidentId","currentChancellorId","nominatedChancellorId","lastElectedPresidentId","lastElectedChancellorId"]) assert(v[key]===null || (text(v[key]) && ids.has(v[key])));
- assert(v.myRole===null || one(v.myRole,["LIBERAL","FASCIST","HITLER"]));
- assert(array(v.knownAllyIds,x=>text(x)&&ids.has(x)));
- assert(array(v.handCards,x=>one(x,["LIBERAL","FASCIST"])) && v.handCards.length<=3);
- const expectedHand=v.currentPhase==="LEGISLATIVE_PRESIDENT"&&v.myPlayerId===v.currentPresidentId?3:v.currentPhase==="LEGISLATIVE_CHANCELLOR"&&v.myPlayerId===v.currentChancellorId?2:v.currentPhase==="EXECUTIVE_ACTION"&&v.pendingExecutiveAction==="POLICY_PEEK"&&v.myPlayerId===v.currentPresidentId?3:0;
- assert(v.handCards.length===expectedHand);
- assert(v.investigatedPartyMembership===null || one(v.investigatedPartyMembership,["LIBERAL","FASCIST"]));
- assert(typeof v.vetoRequestedThisRound==="boolean" && array(v.gameLogs,x=>typeof x==="string"));
- assert(Array.isArray(v.investigationResults));
- for(const entry of v.investigationResults) { const r=object(entry); assert(text(r.investigationId) && uuidPattern.test(r.investigationId) && text(r.targetPlayerId) && ids.has(r.targetPlayerId) && one(r.partyMembership,["LIBERAL","FASCIST"]) && !("investigatorPlayerId" in r) && !("role" in r)); }
- // Keep only the documented DTO; unknown root fields cannot propagate secrets.
- const keys=["roomCode","stateVersion","currentPhase","enactedLiberalPolicies","enactedFascistPolicies","electionTracker","drawDeckSize","discardDeckSize","currentPresidentId","currentChancellorId","nominatedChancellorId","lastElectedPresidentId","lastElectedChancellorId","pendingExecutiveAction","winner","winReason","players","gameLogs","myPlayerId","myRole","knownAllyIds","handCards","investigatedPartyMembership","vetoRequestedThisRound","investigationResults"];
- return Object.fromEntries(keys.map(k=>[k,v[k]])) as unknown as PlayerView;
+import {
+  executives,
+  phases,
+  roomCodePattern,
+  type PlayerView,
+  type PublicPlayer,
+  type RoomResponse,
+} from "@/lib/game/types";
+
+export class SchemaError extends Error {
+  constructor() {
+    super(
+      "Dữ liệu phòng không hợp lệ. Hãy đồng bộ lại hoặc cập nhật ứng dụng.",
+    );
+  }
 }
-export function decodeResult(input:unknown):CommandResult {
- const v=object(input); assert(text(v.actionId)&&uuidPattern.test(v.actionId)&&one(v.action,actions)&&one(v.status,["ACCEPTED","REJECTED"])&&nullableText(v.code)&&nullableText(v.message)&&count(v.stateVersion));
- return { actionId:v.actionId,action:v.action,status:v.status,code:v.code,message:v.message,stateVersion:v.stateVersion } as CommandResult;
+
+function assert(condition: unknown): asserts condition {
+  if (!condition) {
+    throw new SchemaError();
+  }
 }
-export function decodeRoomResponse(input:unknown):RoomResponse { const v=object(input); const gameState=decodePlayerView(v.gameState); assert(v.roomCode===gameState.roomCode); return { roomCode:gameState.roomCode,gameState }; }
+
+function record(value: unknown): Record<string, unknown> {
+  assert(value !== null && typeof value === "object" && !Array.isArray(value));
+  return value as Record<string, unknown>;
+}
+
+const isText = (value: unknown): value is string =>
+  typeof value === "string" && value.length > 0;
+const isMember = (value: unknown, choices: readonly string[]) =>
+  typeof value === "string" && choices.includes(value);
+const isCount = (value: unknown, maximum: number) =>
+  typeof value === "number" &&
+  Number.isSafeInteger(value) &&
+  value >= 0 &&
+  value <= maximum;
+
+function decodePlayer(input: unknown, gameOver: boolean): PublicPlayer {
+  const player = record(input);
+  const publicKeys = [
+    "id",
+    "nickname",
+    "isAlive",
+    "isHost",
+    "isConnected",
+    "isInvestigated",
+    "hasVoted",
+    "lastRevealedVote",
+    "revealedRole",
+  ];
+  assert(Object.keys(player).every((key) => publicKeys.includes(key)));
+  assert(isText(player.id) && isText(player.nickname));
+  for (const key of [
+    "isAlive",
+    "isHost",
+    "isConnected",
+    "isInvestigated",
+    "hasVoted",
+  ]) {
+    assert(typeof player[key] === "boolean");
+  }
+  assert(
+    player.lastRevealedVote === null ||
+      isMember(player.lastRevealedVote, ["JA", "NEIN"]),
+  );
+  const revealedRole = player.revealedRole ?? null;
+  assert(
+    revealedRole === null ||
+      (gameOver && isMember(revealedRole, ["LIBERAL", "FASCIST", "HITLER"])),
+  );
+  return Object.fromEntries(
+    publicKeys.map((key) => [key, player[key]]),
+  ) as unknown as PublicPlayer;
+}
+
+export function decodePlayerView(input: unknown): PlayerView {
+  const view = record(input);
+  assert(
+    typeof view.roomCode === "string" && roomCodePattern.test(view.roomCode),
+  );
+  assert(
+    isMember(view.currentPhase, phases) &&
+      isMember(view.pendingExecutiveAction, executives),
+  );
+  for (const [key, maximum] of Object.entries({
+    enactedLiberalPolicies: 5,
+    enactedFascistPolicies: 6,
+    electionTracker: 3,
+    drawDeckSize: 17,
+    discardDeckSize: 17,
+  })) {
+    assert(isCount(view[key], maximum));
+  }
+  assert(isMember(view.winner, ["NONE", "LIBERAL", "FASCIST"]));
+  assert(view.winReason === null || isText(view.winReason));
+  assert(
+    Array.isArray(view.players) &&
+      view.players.length >= 1 &&
+      view.players.length <= 10,
+  );
+  const players = view.players.map((player) =>
+    decodePlayer(player, view.currentPhase === "GAME_OVER"),
+  );
+  const playerIds = new Set(players.map((player) => player.id));
+  assert(
+    playerIds.size === players.length &&
+      isText(view.myPlayerId) &&
+      playerIds.has(view.myPlayerId),
+  );
+  if (view.eligibleChancellorIds !== undefined) {
+    assert(
+      Array.isArray(view.eligibleChancellorIds) &&
+        view.eligibleChancellorIds.every(
+          (id) => isText(id) && playerIds.has(id),
+        ),
+    );
+  }
+  const suppliedInvestigationTarget = view.investigatedPlayerId ?? null;
+  assert(
+    suppliedInvestigationTarget === null || isText(suppliedInvestigationTarget),
+  );
+  const investigatedPlayerId =
+    suppliedInvestigationTarget !== null &&
+    playerIds.has(suppliedInvestigationTarget)
+      ? suppliedInvestigationTarget
+      : null;
+  for (const key of [
+    "currentPresidentId",
+    "currentChancellorId",
+    "nominatedChancellorId",
+    "lastElectedPresidentId",
+    "lastElectedChancellorId",
+  ]) {
+    // BE retains office references when a member leaves, including in an aborted game.
+    // Keep the identifiers without treating a removed office holder as an active player.
+    assert(view[key] === null || isText(view[key]));
+  }
+  assert(
+    view.myRole === null ||
+      isMember(view.myRole, ["LIBERAL", "FASCIST", "HITLER"]),
+  );
+  assert(
+    Array.isArray(view.knownAllyIds) &&
+      view.knownAllyIds.every((id) => isText(id) && playerIds.has(id)),
+  );
+  assert(
+    Array.isArray(view.handCards) &&
+      view.handCards.length <= 3 &&
+      view.handCards.every((card) => isMember(card, ["LIBERAL", "FASCIST"])),
+  );
+  assert(
+    view.investigatedPartyMembership === null ||
+      isMember(view.investigatedPartyMembership, ["LIBERAL", "FASCIST"]),
+  );
+  assert(
+    Array.isArray(view.gameLogs) &&
+      view.gameLogs.every((entry) => typeof entry === "string"),
+  );
+
+  const presidentCanSee =
+    view.myPlayerId === view.currentPresidentId &&
+    (view.currentPhase === "LEGISLATIVE_PRESIDENT" ||
+      (view.currentPhase === "EXECUTIVE_ACTION" &&
+        view.pendingExecutiveAction === "POLICY_PEEK"));
+  const chancellorCanSee =
+    view.myPlayerId === view.currentChancellorId &&
+    view.currentPhase === "LEGISLATIVE_CHANCELLOR";
+  const ownPlayerIsAlive =
+    players.find((player) => player.id === view.myPlayerId)?.isAlive === true;
+  const keys = [
+    "roomCode",
+    "currentPhase",
+    "enactedLiberalPolicies",
+    "enactedFascistPolicies",
+    "electionTracker",
+    "drawDeckSize",
+    "discardDeckSize",
+    "currentPresidentId",
+    "currentChancellorId",
+    "nominatedChancellorId",
+    "lastElectedPresidentId",
+    "lastElectedChancellorId",
+    "eligibleChancellorIds",
+    "pendingExecutiveAction",
+    "winner",
+    "winReason",
+    "gameLogs",
+    "myPlayerId",
+    "myRole",
+    "knownAllyIds",
+  ];
+  const canSeeInvestigation =
+    ownPlayerIsAlive &&
+    view.myPlayerId === view.currentPresidentId &&
+    view.currentPhase === "EXECUTIVE_ACTION" &&
+    view.pendingExecutiveAction === "INVESTIGATE_LOYALTY" &&
+    investigatedPlayerId !== null;
+  // Ignore unknown root fields. In particular, stale executive cards never enter UI state.
+  return {
+    ...Object.fromEntries(keys.map((key) => [key, view[key]])),
+    players,
+    investigatedPlayerId: canSeeInvestigation ? investigatedPlayerId : null,
+    investigatedPartyMembership: canSeeInvestigation
+      ? view.investigatedPartyMembership
+      : null,
+    handCards:
+      ownPlayerIsAlive && (presidentCanSee || chancellorCanSee)
+        ? [...view.handCards]
+        : [],
+  } as unknown as PlayerView;
+}
+
+export function decodeRoomResponse(input: unknown): RoomResponse {
+  const response = record(input);
+  const gameState = decodePlayerView(response.gameState);
+  assert(response.roomCode === gameState.roomCode);
+  return { roomCode: gameState.roomCode, gameState };
+}

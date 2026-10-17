@@ -1,53 +1,101 @@
-# Secret Hitler — web client
+# Secret Hitler — React + TypeScript
 
-Giao diện tiếng Việt dành cho máy tính, dùng Next.js/React và BE Spring Boot của dự án. Hỗ trợ phòng 5–10 người, đề cử/bỏ phiếu, lập pháp, veto, quyền lực Tổng thống, kết quả và khôi phục phiên.
+FE là ứng dụng React chạy trong trình duyệt, dùng Vite để chạy dev và build static; React Router quản lý `/` và `/room/:roomCode`. Không còn Next.js hoặc server render FE. WebSocket/SockJS vẫn cập nhật ván chơi trực tiếp.
+
+BE được cập nhật từ `origin/develop` tại commit `3e50528`. Branch làm việc: `align-frontend-backend`. Không chỉnh sửa logic/config/tests BE ngoài các commit đã pull.
 
 ## Chạy local
 
-Cần Node 24, npm và JDK 21. Từ thư mục `frontend`:
+Cần Node24/npm và JDK21 cho BE. Terminal FE, từ `frontend`:
 
 ```powershell
 npm.cmd ci
-if (!(Test-Path -LiteralPath '.env.local')) { Copy-Item -LiteralPath '.env.example' -Destination '.env.local' }
+if (!(Test-Path -LiteralPath '.env.local')) {
+    Copy-Item -LiteralPath '.env.example' -Destination '.env.local'
+}
 npm.cmd run dev
 ```
 
-Mở http://localhost:3000. BE chạy cổng 8080 trong terminal riêng:
+Mở http://localhost:3000. Nếu đã có `.env.local`, giữ file đó và đặt hai biến công khai sau; không ghi đè file chứa thông tin riêng:
+
+```dotenv
+VITE_API_URL=http://localhost:8080
+VITE_WS_URL=http://localhost:8080/ws
+```
+
+Các tên `NEXT_PUBLIC_*` cũ không còn được sử dụng. URL SockJS phải là HTTP(S), không phải `wss://`. Restart dev/build lại sau khi đổi env. Các biến VITE được đưa vào bundle, không đặt secret ở đó.
+
+Terminal BE riêng, từ `Backend`:
 
 ```powershell
-Set-Location '../Backend'
-$env:JAVA_HOME=(Resolve-Path '../.tools/jdk-21.0.12.1+1').Path # hoặc JDK 21 của bạn
+$env:JAVA_HOME=(Resolve-Path '../.tools/jdk-21.0.12.1+1').Path # hoặc JDK21 của bạn
 $env:DEBUG='false'
 .\mvnw.cmd spring-boot:run
 ```
 
-`.env.local` dùng `NEXT_PUBLIC_API_URL=http://localhost:8080` và `NEXT_PUBLIC_WS_URL=http://localhost:8080/ws`. Chúng là địa chỉ HTTP của REST/SockJS, không chứa token. FE đóng gói Noto Sans/Noto Serif (có bộ ký tự tiếng Việt) từ Fontsource, không tải font từ dịch vụ ngoài khi chơi.
+Mỗi người dùng profile trình duyệt riêng. Web Locks chặn tab trùng trong cùng profile; cần localhost/HTTPS. Danh tính được giữ qua reload; role/cards/kết quả điều tra chỉ ở RAM.
 
-Mỗi người dùng profile trình duyệt riêng. Trong cùng profile chỉ một tab giữ phiên phòng; tab thứ hai bị chặn bằng Web Locks. Identity được giữ ở localStorage; vai trò, lá bài và kết quả điều tra chỉ ở bộ nhớ. Reload dùng identity cũ để lấy snapshot, không tự join thêm. Rời phòng cần xác nhận, dọn dữ liệu riêng và giữ nickname; không có rematch trong phòng cũ. BE giữ phòng trong RAM, phòng idle bị dọn sau một giờ.
+## Build và Vercel
+
+```powershell
+npm.cmd run build
+npm.cmd run preview
+```
+
+Build tạo **`frontend/dist`**, có thể phục vụ bằng static hosting. `preview` dùng port3000 để kiểm tra build trên máy. Không cần chạy một Next.js service.
+
+Trong Vercel, giữ project/domain đang có và đặt:
+
+- Root Directory: `frontend`.
+- Framework Preset: **Vite**.
+- Build Command: `npm run build`.
+- Output Directory: `dist`.
+- Environment Variables: `VITE_API_URL` và `VITE_WS_URL` trỏ BE HTTPS công khai.
+
+`frontend/vercel.json` đã khai báo Vite và SPA rewrite tới index.html, để mở trực tiếp/tải lại `/room/ABC234` không bị404. Không có thao tác deploy tự động trong lần chỉnh sửa này.
+
+## Tương thích BE hiện tại
+
+- Nhận DTO mới gồm `eligibleChancellorIds`, `revealedRole`, `investigatedPlayerId`; vẫn đọc được DTO cũ khi thiếu các field bổ sung.
+- Vai trò công khai chỉ hiển thị ở GAME_OVER khi BE thực sự cung cấp. Từ chối role trong public player của ván đang chạy.
+- Điều tra hiển thị kết quả gắn với đúng mục tiêu, chỉ cho Tổng thống trong lượt điều tra; bấm **Đã xem kết quả** gửi end-action để tiếp tục. Không dựng lịch sử riêng hoặc suy đoán party từ log.
+- Queue state riêng và session header trên mỗi SEND; không tự replay, không coi snapshot đổi là ACK cho từng lệnh. Thông báo chưa rõ kết quả xuất hiện trong tối đa8giây.
+- Giữ polling2giây như phương án đồng bộ dự phòng dù BE mới đã broadcast join. Reconnect xác minh membership trước same-token join, không tạo member thay thế.
+- Chủ phòng có nút **Mời rời phòng** cạnh thành viên khác trong phòng chờ, bàn chơi và danh sách vai trò cuối ván. Popup xác nhận nêu rõ người bị mời ra và cảnh báo dừng ván nếu còn dưới 5 thành viên. FE gửi `/kick` với `targetPlayerId`; chỉ cập nhật kết quả theo trạng thái BE.
+- **Rời phòng** gửi `/leave` một lần rồi kiểm tra membership trước khi xóa danh tính và về trang đầu. Nếu chưa xác nhận được, FE giữ danh tính để người dùng kết nối lại kiểm tra, đóng thông tin riêng và không tự gửi lại yêu cầu. Mất mạng/đóng tab/F5 chỉ là ngắt kết nối, khác với rời phòng chủ động.
+- Người bị kick được phát hiện qua lượt đồng bộ membership tiếp theo, đóng dữ liệu riêng, xóa danh tính cũ và không tự join lại. Khi ván kết thúc, chủ phòng chọn **Trở lại phòng chờ** để giữ mã phòng và các thành viên còn lại. Sau khi phòng trở về LOBBY, người đã rời hoặc bị kick có thể chủ động tham gia lại bằng mã cũ; cần đủ 5–10 người để bắt đầu ván mới.
+- BE tự chuyển chủ khi chủ phòng rời và dừng ván đang chơi khi số thành viên còn dưới 5. FE hiển thị `GAME_OVER`, `winner=NONE` và lý do từ BE; chấp nhận các tham chiếu chức vụ cũ tới thành viên đã rời. FE không tự đổi luật hoặc tự gán người thắng. Chưa thêm nút restart hay coi error queue là ACK cho từng lệnh.
+- Phòng lưu RAM; restart BE làm mất phòng. Veto không có authoritative flag trong DTO; BE quyết định khả dụng. Không sửa luật/bug engine bằng FE.
+- BE hiện có thể làm phòng mất chủ: khi chủ phòng ngắt kết nối mà không còn người nào online, cờ `isHost` bị xóa; kết nối lại không gán quyền lại. FE hiển thị tên chủ khi có, hoặc thông báo phòng không có chủ và hướng dẫn tạo phòng mới. FE không tự cấp quyền bắt đầu ván. Để thử chơi, tạo phòng mới rồi mời mọi người vào; tránh tải lại/đóng tab chủ phòng khi chưa có người khác online.
 
 ## Kiểm tra
 
 ```powershell
 npm.cmd run lint
+npm.cmd run format:check
 npm.cmd run typecheck
 npm.cmd test
 npm.cmd run build
-npx.cmd playwright install chromium
-npm.cmd run test:e2e
+npx.cmd playwright test --config=playwright.compatibility.config.ts
+npx.cmd playwright test
 ```
 
-E2E cần Microsoft Edge đã cài cho project `edge`. Playwright tự khởi động fixture BE loopback **8081** và Next **3000**, cấu hình FE trỏ tới fixture BE. Hãy dừng Next đang chạy với env 8080 trước khi chạy E2E: reuse một server khác env sẽ làm test dùng nhầm BE. Cần JDK 21 hoặc portable JDK ở `.tools/`. Fixture và timing endpoint chỉ thuộc test classpath, không được đóng gói production. Traces tắt để tránh ghi private frames; timing report chỉ chứa actionId/version/recipient test/timing.
+Unit/integration dùng Vitest. Compatibility suite dùng FE3101 và mock API18082. Real suite dùng FE3100/BE18081; launcher FE-owned build sạch production JAR, kiểm tra BE không khác commit3e50528, không chèn fixture/endpoint vào BE. Mỗi suite chạy Chromium và Microsoft Edge đã cài; `npx.cmd playwright install chromium` nếu thiếu Chromium.
 
-Chạy một nhóm: `npx.cmd playwright test reconnect.spec.ts --project=chromium`. Báo cáo local ở `playwright-report/`; artifact/cache được ignore. Không commit/push/deploy tự động.
+Các port test phải trống; không reuse/dừng nhầm server người dùng. Video/trace/screenshots/private DOM capture bị tắt; attachments chỉ giữ số đếm/timing/action labels an toàn. Dữ liệu mock không được coi là bằng chứng BE thật.
 
-## Khi có lỗi
+Xem `../../specs/003-align-frontend-backend/react-migration.md` cho kết quả migration hiện tại. Báo cáo validation cũ là lịch sử của BEffad4c2/Next.js, không phải kết quả cho React/BE mới. T074 thử5người thật của feature trước vẫn chờ người dùng. Không tự commit/push/deploy.
 
-- `Đang đồng bộ`/mất mạng: thao tác bị khóa tới khi subscription và GET snapshot hoàn tất. Lệnh quá 8 giây chưa ACK báo chưa rõ kết quả, không tự gửi lại.
-- `Phiên trùng`: đóng tab/profile đang giữ cùng identity rồi thử lại; BE không thay socket chủ động.
-- Identity sai hoặc phòng hết hạn: về trang đầu và tạo/vào phòng mới. Không tự tạo identity mới để rejoin trong recovery.
-- Không hỗ trợ Web Locks hoặc storage bị chặn: ứng dụng hiển thị lỗi, cần Chrome/Edge và cho phép storage.
-- Lỗi Maven: kiểm tra `JAVA_HOME` là JDK 21; lần cài đầu cần Internet. Lỗi Git ownership có thể dùng `git -c safe.directory=D:/Code/HBoardGame/Secret-Hitler-Boardgame ...` cho từng lệnh.
+## Log và cách giữ code dễ đọc
 
-Thiết kế và bằng chứng kiểm chứng ở `D:/Code/HBoardGame/specs/001-game-frontend/`. Phiên nghiệm thu 5 người thật vẫn cần thực hiện theo `quickstart.md`; kết quả tự động không thay cho nghiệm thu này.
+Log và báo cáo local được gom tại `../artifacts/` ở root repository, được Git bỏ qua:
 
-Nếu bấm Back về trang đầu khi phiên còn hoạt động, chọn **Quay lại phòng** hoặc **Rời phòng**; form tạo/vào bàn mới xuất hiện sau khi phiên cũ đã dọn.
+- `logs/root/`: log cũ ở root.
+- `logs/frontend/`: log FE và log BE do launcher kiểm thử FE tạo.
+- `reports/test-results/`: kết quả JSON và attachment Playwright.
+- `reports/playwright-report/`: báo cáo HTML Playwright.
+- `moved-files.json`: danh sách vị trí cũ và mới của các file đã gom.
+
+Log đang có trong `Backend/` được giữ nguyên theo giới hạn không sửa BE. Tài liệu spec được giữ tại thư mục `specs/` để các liên kết lịch sử vẫn hoạt động.
+
+Chạy `npm.cmd run format` để định dạng source, test và config; dùng `npm.cmd run format:check` để kiểm tra. Formatter bỏ qua dependency, bundle, output cũ và lockfile. ESLint yêu cầu dấu ngoặc cho khối điều kiện, một khai báo mỗi câu lệnh và không dùng ternary lồng nhau. Ưu tiên tên biến có nghĩa, JSX nhiều dòng và hàm riêng cho điều kiện dài; xem `docs/readability-review.md` cho phạm vi rà soát.
