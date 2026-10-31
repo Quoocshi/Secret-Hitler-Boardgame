@@ -3,6 +3,7 @@ import { HomePage } from "./pages/HomePage";
 import { RoomScreen } from "./features/room/RoomScreen";
 import { RoomSessionProvider } from "./features/room/RoomSessionProvider";
 import { roomCodePattern } from "./lib/game/types";
+import { SoundRuntime } from "./lib/audio/SoundRuntime";
 
 function NotFoundPage() {
   return (
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
   {
     element: (
       <RoomSessionProvider>
+        <SoundRuntime />
         <Outlet />
       </RoomSessionProvider>
     ),

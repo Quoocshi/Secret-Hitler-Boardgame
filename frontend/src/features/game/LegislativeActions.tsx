@@ -38,6 +38,7 @@ export function LegislativeActions({
         enabled={enabled}
       />
       <Button
+        sound="paper"
         className="primary full"
         disabled={!enabled || selectedIndex === null}
         onClick={() => setConfirmationOpen(true)}

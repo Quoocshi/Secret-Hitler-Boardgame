@@ -3,6 +3,7 @@ import type { PlayerView } from "@/lib/game/types";
 import { chancellorEligibility } from "@/lib/game/permissions";
 import { gameAssets } from "@/lib/game/presentation";
 import { Button } from "@/components/ui/Button";
+import { audioManager } from "@/lib/audio/audio-manager";
 
 export function ChancellorPicker({
   snapshot,
@@ -81,11 +82,15 @@ export function ChancellorPicker({
     popoverRef.current?.showPopover();
     positionPopover();
     setOpen(true);
+    audioManager.play("paper");
   }
 
   function choose(playerId: string) {
     if (!enabled || !chancellorEligibility(snapshot, playerId).allowed) {
       return;
+    }
+    if (value !== playerId) {
+      audioManager.play("softui");
     }
     onChange(playerId);
     closePicker();
@@ -159,6 +164,7 @@ export function ChancellorPicker({
         Ứng viên Thủ tướng
       </label>
       <Button
+        sound={false}
         id="nominee"
         ref={triggerRef}
         className="candidate-trigger"

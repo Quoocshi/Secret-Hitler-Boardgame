@@ -6,6 +6,7 @@ import { KickPlayerButton } from "@/features/room/KickPlayerButton";
 import { Button } from "@/components/ui/Button";
 import { actionPermission } from "@/lib/game/permissions";
 import { gameAssets, roleArtwork } from "@/lib/game/presentation";
+import { audioManager } from "@/lib/audio/audio-manager";
 const roleNames: Record<Role, string> = {
   HITLER: "Hitler",
   LIBERAL: "Tự do",
@@ -179,7 +180,9 @@ export function GameOverPanel({
         </div>
       </section>
       <details className="result-details">
-        <summary>Xem bàn chính sách và nhật ký ván đấu</summary>
+        <summary onClick={() => audioManager.play("paper")}>
+          Xem bàn chính sách và nhật ký ván đấu
+        </summary>
         <div className="result-history">
           <PolicyBoard snapshot={snapshot} />
           <GameLog snapshot={snapshot} />

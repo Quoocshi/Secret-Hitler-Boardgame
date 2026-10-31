@@ -3,6 +3,7 @@ import { roomCodePattern } from "@/lib/game/types";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { StatusNotice } from "@/components/ui/StatusNotice";
+import { audioManager } from "@/lib/audio/audio-manager";
 export function RoomEntryForm({
   nickname: initialNickname,
   roomCode: initialCode,
@@ -32,6 +33,7 @@ export function RoomEntryForm({
     };
     setErrors(validationErrors);
     if (validationErrors.name || validationErrors.code) {
+      audioManager.play("error");
       return;
     }
     onEnter(trimmedNickname, shouldJoinRoom ? normalizedRoomCode : undefined);

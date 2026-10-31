@@ -1,6 +1,7 @@
 import type { Policy } from "@/lib/game/types";
 import { policyLabels } from "@/lib/game/labels";
 import { gameAssets } from "@/lib/game/presentation";
+import { audioManager } from "@/lib/audio/audio-manager";
 
 interface PolicyHandProps {
   cards: Policy[];
@@ -48,7 +49,12 @@ export function PolicyHand({
             className={`${cardClass} ${isSelected ? "selected" : ""}`}
             aria-pressed={isSelected}
             disabled={!enabled}
-            onClick={() => onSelect(index)}
+            onClick={() => {
+              if (selected !== index) {
+                audioManager.play("card");
+              }
+              onSelect(index);
+            }}
             aria-label={`Lá ${cardNumber} — ${policyLabels[card]}`}
           >
             <span>LÁ {cardNumber}</span>

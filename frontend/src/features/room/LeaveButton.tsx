@@ -15,7 +15,11 @@ export function LeaveButton({
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   return (
     <>
-      <Button disabled={disabled} onClick={() => setConfirmationOpen(true)}>
+      <Button
+        sound="paper"
+        disabled={disabled}
+        onClick={() => setConfirmationOpen(true)}
+      >
         {label}
       </Button>
       {confirmationOpen && (

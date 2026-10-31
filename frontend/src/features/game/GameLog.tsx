@@ -1,4 +1,5 @@
 import type { PlayerView } from "@/lib/game/types";
+import { audioManager } from "@/lib/audio/audio-manager";
 
 export function GameLog({
   snapshot,
@@ -18,7 +19,9 @@ export function GameLog({
   if (collapsible) {
     return (
       <details className="panel log-panel">
-        <summary>Nhật ký công khai</summary>
+        <summary onClick={() => audioManager.play("paper")}>
+          Nhật ký công khai
+        </summary>
         {entries}
       </details>
     );

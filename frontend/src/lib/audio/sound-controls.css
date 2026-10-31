@@ -1,0 +1,23 @@
+.sound-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.sound-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sound-controls input[type="range"] {
+  width: 5rem;
+  min-width: 0;
+  accent-color: var(--primary, #344a39);
+}
+
+.entry-intro > .sound-controls {
+  margin-block: 0.75rem;
+}
