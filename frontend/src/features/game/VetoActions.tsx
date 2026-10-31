@@ -46,18 +46,24 @@ export function VetoActions({
             thái máy chủ.
           </p>
           <Button
+            sound="paper"
             disabled={!enabled}
             onClick={() => setConfirmation("approve")}
           >
             Đồng ý veto
           </Button>
-          <Button disabled={!enabled} onClick={() => setConfirmation("reject")}>
+          <Button
+            sound="paper"
+            disabled={!enabled}
+            onClick={() => setConfirmation("reject")}
+          >
             Từ chối veto
           </Button>
         </>
       ) : (
         <>
           <Button
+            sound="paper"
             className="full"
             disabled={!enabled || knowledge === "observed-requested"}
             onClick={() => setConfirmation("request")}

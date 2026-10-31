@@ -4,6 +4,7 @@ import { useRoomSession } from "@/features/room/RoomSessionProvider";
 import { LeaveButton } from "@/features/room/LeaveButton";
 import { StatusNotice } from "@/components/ui/StatusNotice";
 import { gameAssets } from "@/lib/game/presentation";
+import { SoundControls } from "@/components/ui/SoundControls";
 
 export function HomePage() {
   const session = useRoomSession();
@@ -60,6 +61,7 @@ export function HomePage() {
     <main className="entry-layout">
       <section className="entry-intro">
         <span className="brand">BÀN CHƠI / SECRET HITLER</span>
+        <SoundControls />
         <p className="eyebrow">TIN AI. NGHI AI. BẦU CHỌN.</p>
         <h1>
           Một bàn chơi.

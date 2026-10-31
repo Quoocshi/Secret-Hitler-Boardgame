@@ -35,6 +35,7 @@ export function VotingActions({
       </p>
       <div className="vote-buttons">
         <Button
+          sound={selectedVote === "JA" ? false : "paper"}
           className="vote-ja"
           aria-pressed={selectedVote === "JA"}
           disabled={!enabled}
@@ -47,6 +48,7 @@ export function VotingActions({
           )}
         </Button>
         <Button
+          sound={selectedVote === "NEIN" ? false : "paper"}
           className="vote-nein"
           aria-pressed={selectedVote === "NEIN"}
           disabled={!enabled}

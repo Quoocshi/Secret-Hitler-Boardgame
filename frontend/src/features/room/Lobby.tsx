@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { StatusNotice } from "@/components/ui/StatusNotice";
 import { KickPlayerButton } from "./KickPlayerButton";
 import { gameAssets } from "@/lib/game/presentation";
+import { audioManager } from "@/lib/audio/audio-manager";
 export function Lobby({
   snapshot,
   enabled,
@@ -54,16 +55,22 @@ export function Lobby({
               onFocus={(event) => event.target.select()}
             />
             <Button
+              sound={false}
               onClick={() => {
                 void navigator.clipboard
                   ?.writeText(snapshot.roomCode)
-                  .then(() => setCopyNotice("Đã sao chép mã phòng."))
-                  .catch(() =>
+                  .then(() => {
+                    audioManager.play("notify");
+                    setCopyNotice("Đã sao chép mã phòng.");
+                  })
+                  .catch(() => {
+                    audioManager.play("error");
                     setCopyNotice(
                       "Chưa sao chép được. Chọn mã phía trên và nhấn Ctrl+C.",
-                    ),
-                  );
+                    );
+                  });
                 if (!navigator.clipboard) {
+                  audioManager.play("error");
                   setCopyNotice("Chọn mã phía trên và nhấn Ctrl+C.");
                 }
               }}

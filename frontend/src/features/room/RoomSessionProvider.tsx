@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router";
+import { audioManager } from "@/lib/audio/audio-manager";
 import { createRoom, joinRoom } from "@/lib/api/rooms";
 import { errorMessage } from "@/lib/api/errors";
 import type { Action, SessionIdentity } from "@/lib/game/types";
@@ -332,6 +333,7 @@ export function RoomSessionProvider({
     try {
       runtime.current.client?.send(action, payload);
     } catch (error) {
+      audioManager.play("error");
       dispatch({
         type: "notice",
         notice: errorMessage(error),

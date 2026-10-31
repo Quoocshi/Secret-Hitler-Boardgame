@@ -5,6 +5,7 @@ import { executiveTargetEligibility } from "@/lib/game/permissions";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PolicyHand } from "./PolicyHand";
+import { audioManager } from "@/lib/audio/audio-manager";
 
 function targetAction(power: ExecutiveAction): {
   action: Action;
@@ -118,7 +119,12 @@ export function ExecutiveActions({
         id="executive-target"
         value={selectedPlayerId}
         disabled={!enabled}
-        onChange={(event) => setSelectedPlayerId(event.target.value)}
+        onChange={(event) => {
+          if (event.target.value !== selectedPlayerId) {
+            audioManager.play("softui");
+          }
+          setSelectedPlayerId(event.target.value);
+        }}
       >
         <option value="">Chọn người chơi</option>
         {snapshot.players.map((player) => {
@@ -136,6 +142,7 @@ export function ExecutiveActions({
         })}
       </select>
       <Button
+        sound="paper"
         className="primary full"
         disabled={!enabled || !targetIsEligible}
         onClick={() => setConfirmationOpen(true)}

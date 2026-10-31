@@ -29,6 +29,7 @@ export function PrivateInfoPanel({ snapshot }: { snapshot: PlayerView }) {
       <h2>Thông tin riêng</h2>
       <div className="private-role-viewer">
         <Button
+          sound="card"
           className="private-role-frame"
           aria-label={open ? "Úp thẻ vai trò" : "Lật thẻ vai trò"}
           aria-expanded={open}
@@ -65,6 +66,7 @@ export function PrivateInfoPanel({ snapshot }: { snapshot: PlayerView }) {
         </Button>
         <div className="private-role-controls">
           <Button
+            sound="card"
             aria-expanded={open}
             aria-controls="private-role"
             onClick={toggleRole}

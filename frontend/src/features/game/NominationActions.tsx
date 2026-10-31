@@ -27,6 +27,7 @@ export function NominationActions({
         enabled={enabled}
       />
       <Button
+        sound="paper"
         className="primary full"
         disabled={
           !enabled ||

@@ -58,7 +58,7 @@ export function ConfirmDialog({
       <div>{children}</div>
       <div className="dialog-actions">
         <Button onClick={onCancel}>Hủy</Button>
-        <Button className="primary" onClick={onConfirm}>
+        <Button className="primary" sound="hardui" onClick={onConfirm}>
           {confirmLabel}
         </Button>
       </div>

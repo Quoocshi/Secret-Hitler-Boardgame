@@ -38,6 +38,7 @@ export function KickPlayerButton({ playerId }: { playerId: string }) {
   return (
     <>
       <Button
+        sound="paper"
         className="player-kick"
         aria-label={`Mời ${target.nickname} rời phòng`}
         disabled={!enabled}

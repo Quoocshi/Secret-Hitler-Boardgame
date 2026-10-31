@@ -6,6 +6,7 @@ import { GameScreen } from "@/features/game/GameScreen";
 import { GameOverPanel } from "@/features/game/GameOverPanel";
 import { StatusNotice } from "@/components/ui/StatusNotice";
 import { Button } from "@/components/ui/Button";
+import { SoundControls } from "@/components/ui/SoundControls";
 
 const ROOM_UPDATE_NOTICE_DURATION_MS = 5000;
 
@@ -68,6 +69,7 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
     >
       <header className="room-header">
         <span className="brand">SECRET HITLER</span>
+        <SoundControls />
         <span>
           Phòng{" "}
           <strong className="selectable-room-code" data-testid="room-code">
