@@ -13,9 +13,11 @@ import {
 } from "./support/room";
 
 async function expectRecoveredControls(page: Page, snapshot: PlayerView) {
+  await page.getByRole("button", { name: "Cài đặt", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Rời phòng", exact: true }),
   ).toBeEnabled();
+  await page.keyboard.press("Escape");
   if (snapshot.currentPhase === "VOTING") {
     await expect(
       page.getByRole("button", { name: "JA — Đồng ý", exact: true }),

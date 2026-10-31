@@ -1,7 +1,6 @@
 import type { PlayerView, Role } from "@/lib/game/types";
 import { PolicyBoard } from "./PolicyBoard";
 import { GameLog } from "./GameLog";
-import { LeaveButton } from "@/features/room/LeaveButton";
 import { KickPlayerButton } from "@/features/room/KickPlayerButton";
 import { Button } from "@/components/ui/Button";
 import { actionPermission } from "@/lib/game/permissions";
@@ -17,13 +16,11 @@ export function GameOverPanel({
   online,
   pending,
   onRestart,
-  onLeave,
 }: {
   snapshot: PlayerView;
   online: boolean;
   pending: boolean;
   onRestart: () => void;
-  onLeave: () => Promise<void>;
 }) {
   const currentPlayer = snapshot.players.find(
     (player) => player.id === snapshot.myPlayerId,
@@ -173,9 +170,6 @@ export function GameOverPanel({
                   : "Phòng hiện không có chủ phòng để mở lại phòng chờ. Bạn có thể về trang đầu và tạo phòng mới."}
               </p>
             )}
-            <div className="result-leave">
-              <LeaveButton onLeave={onLeave} label="Về trang đầu" />
-            </div>
           </aside>
         </div>
       </section>

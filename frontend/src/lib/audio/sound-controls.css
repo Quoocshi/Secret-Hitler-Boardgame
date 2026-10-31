@@ -6,18 +6,30 @@
   font-size: 0.8rem;
 }
 
-.sound-controls label {
+.sound-controls .sound-volume {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  gap: 0.5rem;
+}
+
+.sound-volume-heading {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  justify-content: space-between;
 }
 
 .sound-controls input[type="range"] {
-  width: 5rem;
+  appearance: auto;
+  width: 100%;
   min-width: 0;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
   accent-color: var(--primary, #344a39);
-}
-
-.entry-intro > .sound-controls {
-  margin-block: 0.75rem;
 }

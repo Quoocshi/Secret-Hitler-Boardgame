@@ -36,6 +36,9 @@ export async function waitOnline(page: Page) {
 }
 
 export async function confirm(page: Page, buttonName: string) {
+  if (buttonName === "Rời phòng") {
+    await page.getByRole("button", { name: "Cài đặt", exact: true }).click();
+  }
   await page.getByRole("button", { name: buttonName, exact: true }).click();
   await page
     .getByRole("dialog")

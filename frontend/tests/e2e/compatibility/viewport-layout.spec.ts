@@ -121,9 +121,7 @@ for (const viewport of desktopWindows) {
         page.getByRole("button", { name: "Trở lại phòng chờ", exact: true }),
       );
       await expectFullyVisible(
-        page
-          .locator(".result-next")
-          .getByRole("button", { name: "Về trang đầu", exact: true }),
+        page.getByRole("button", { name: "Cài đặt", exact: true }),
       );
       await expectNoPageScroll(page);
       await page

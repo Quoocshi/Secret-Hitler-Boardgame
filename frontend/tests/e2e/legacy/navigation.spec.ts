@@ -34,6 +34,9 @@ test("real BE: a second tab cannot acquire the active room lock", async ({
       secondTab.getByRole("button", { name: "Bắt đầu ván", exact: true }),
     ).toHaveCount(0);
     await secondTab
+      .getByRole("button", { name: "Cài đặt", exact: true })
+      .click();
+    await secondTab
       .getByRole("button", { name: "Rời phòng", exact: true })
       .click();
     await secondTab
