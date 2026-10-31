@@ -73,25 +73,32 @@ test("gesture unlock, mute, preferences and reload do not replay game sounds", a
   );
   expect(await page.evaluate(() => window.soundStarts)).toBe(0);
   // First gesture primes playback; an unloaded click is intentionally discarded.
+  await page.getByRole("button", { name: "Cài đặt", exact: true }).click();
   await page.getByRole("slider", { name: "Âm lượng hiệu ứng" }).focus();
   await page.keyboard.press("ArrowLeft");
   await expect.poll(() => page.evaluate(() => window.soundDecoded)).toBe(11);
+  await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: "Lật thẻ vai trò", exact: true })
     .click();
   await expect.poll(() => page.evaluate(() => window.soundStarts)).toBe(1);
+  await page.getByRole("button", { name: "Cài đặt", exact: true }).click();
   await page.getByRole("button", { name: "Tắt âm thanh", exact: true }).click();
+  const startsBeforeMute = await page.evaluate(() => window.soundStarts);
+  await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: "Úp thẻ vai trò", exact: true })
     .click();
-  expect(await page.evaluate(() => window.soundStarts)).toBe(1);
+  expect(await page.evaluate(() => window.soundStarts)).toBe(startsBeforeMute);
   await page.reload();
+  await page.getByRole("button", { name: "Cài đặt", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Bật âm thanh", exact: true }),
   ).toBeVisible();
   expect(await page.evaluate(() => window.soundStarts)).toBe(0);
   await page.getByRole("button", { name: "Bật âm thanh", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.soundDecoded)).toBe(11);
+  await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: "Lật thẻ vai trò", exact: true })
     .click();

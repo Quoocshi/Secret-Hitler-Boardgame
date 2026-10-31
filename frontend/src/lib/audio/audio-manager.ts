@@ -1,7 +1,7 @@
 import { sounds, soundUrl, type SoundId } from "./sounds";
 
 export const SOUND_SETTINGS_KEY = "hboardgame.sound";
-const DEFAULT_SETTINGS = { enabled: true, volume: 0.4 };
+const DEFAULT_SETTINGS = { enabled: true, volume: 0.8 };
 const REPEAT_INTERVAL_MS = 100;
 
 export interface SoundSettings {

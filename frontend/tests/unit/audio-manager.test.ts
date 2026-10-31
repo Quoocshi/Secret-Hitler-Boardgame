@@ -108,7 +108,8 @@ it("preempts UI with important events, blocks lower priority overlap and stops o
 it("applies gain and remembers only validated sound preferences", async () => {
   await loaded();
   manager.play("gunshot");
-  expect(context.gains[0].gain.value).toBeCloseTo(0.4 * sounds.gunshot.gain);
+  expect(manager.getSettings().volume).toBe(0.8);
+  expect(context.gains[0].gain.value).toBeCloseTo(0.8 * sounds.gunshot.gain);
   manager.setSettings({ volume: 0.2 });
   expect(context.gains[0].gain.value).toBeCloseTo(0.2 * sounds.gunshot.gain);
   expect(JSON.parse(localStorage.getItem(SOUND_SETTINGS_KEY)!)).toEqual({

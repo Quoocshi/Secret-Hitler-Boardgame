@@ -1,10 +1,9 @@
 import { Link } from "react-router";
 import { RoomEntryForm } from "@/features/room/RoomEntryForm";
 import { useRoomSession } from "@/features/room/RoomSessionProvider";
-import { LeaveButton } from "@/features/room/LeaveButton";
+import { GameSettings } from "@/features/room/GameSettings";
 import { StatusNotice } from "@/components/ui/StatusNotice";
 import { gameAssets } from "@/lib/game/presentation";
-import { SoundControls } from "@/components/ui/SoundControls";
 
 export function HomePage() {
   const session = useRoomSession();
@@ -33,11 +32,6 @@ export function HomePage() {
           >
             Quay lại phòng
           </Link>
-          <LeaveButton
-            onLeave={session.leave}
-            disabled={session.state.connection === "leaving"}
-            localOnly={session.state.connection === "expired"}
-          />
         </div>
       </section>
     );
@@ -60,8 +54,10 @@ export function HomePage() {
   return (
     <main className="entry-layout">
       <section className="entry-intro">
-        <span className="brand">BÀN CHƠI / SECRET HITLER</span>
-        <SoundControls />
+        <div className="entry-toolbar">
+          <span className="brand">BÀN CHƠI / SECRET HITLER</span>
+          <GameSettings showLeave={!!session.identity} />
+        </div>
         <p className="eyebrow">TIN AI. NGHI AI. BẦU CHỌN.</p>
         <h1>
           Một bàn chơi.

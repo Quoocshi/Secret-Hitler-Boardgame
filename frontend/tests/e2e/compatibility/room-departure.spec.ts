@@ -11,6 +11,7 @@ test("FE mock: unconfirmed leave retains identity, closes private data, and neve
       handCards: ["LIBERAL", "FASCIST", "FASCIST"],
     }),
   );
+  await page.getByRole("button", { name: "Cài đặt", exact: true }).click();
   await page.getByRole("button", { name: "Rời phòng", exact: true }).click();
   await page
     .getByRole("dialog")

@@ -33,6 +33,12 @@ for (const viewport of [
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
       ).toBe(true);
+      const settings = page.getByRole("button", {
+        name: "Cài đặt",
+        exact: true,
+      });
+      await settings.focus();
+      await page.keyboard.press("Enter");
       const leave = page.getByRole("button", {
         name: "Rời phòng",
         exact: true,
@@ -42,7 +48,9 @@ for (const viewport of [
       await expect(page.getByRole("dialog")).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(page.getByRole("dialog")).toHaveCount(0);
-      await expect(leave).toBeFocused();
+      await expect(settings).toBeFocused();
+      await page.keyboard.press("Enter");
+      await leave.focus();
       await page.keyboard.press("Enter");
       await expect(page.getByRole("dialog")).toBeVisible();
       await page.keyboard.press("Tab");

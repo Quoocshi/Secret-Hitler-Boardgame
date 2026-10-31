@@ -1,17 +1,16 @@
 import { useRoomSession } from "./RoomSessionProvider";
 import { ConnectionBanner, connectionLabels } from "./ConnectionBanner";
-import { LeaveButton } from "./LeaveButton";
+import { GameSettings } from "./GameSettings";
 import { Lobby } from "./Lobby";
 import { GameScreen } from "@/features/game/GameScreen";
 import { GameOverPanel } from "@/features/game/GameOverPanel";
 import { StatusNotice } from "@/components/ui/StatusNotice";
 import { Button } from "@/components/ui/Button";
-import { SoundControls } from "@/components/ui/SoundControls";
 
 const ROOM_UPDATE_NOTICE_DURATION_MS = 5000;
 
 export function RoomScreen({ roomCode }: { roomCode: string }) {
-  const { state, send, leave, retry, dismissNotice } = useRoomSession();
+  const { state, send, retry, dismissNotice } = useRoomSession();
   const isRoomUpdateNotice = state.notice === "Bàn chơi đã cập nhật.";
   const snapshot = state.snapshot;
   const pending = !!(state.pendingAction || state.uncertainAction);
@@ -44,7 +43,6 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
         online={online}
         pending={pending}
         onRestart={() => send("restart")}
-        onLeave={leave}
       />
     );
   } else {
@@ -69,7 +67,6 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
     >
       <header className="room-header">
         <span className="brand">SECRET HITLER</span>
-        <SoundControls />
         <span>
           Phòng{" "}
           <strong className="selectable-room-code" data-testid="room-code">
@@ -79,14 +76,7 @@ export function RoomScreen({ roomCode }: { roomCode: string }) {
         <span className="connection" data-testid="connection">
           {connectionLabels[state.connection]}
         </span>
-        <LeaveButton
-          onLeave={leave}
-          disabled={state.connection === "leaving"}
-          localOnly={["expired", "removed", "duplicate"].includes(
-            state.connection,
-          )}
-          label={state.connection === "removed" ? "Về trang đầu" : "Rời phòng"}
-        />
+        <GameSettings showLeave />
       </header>
       <ConnectionBanner
         connection={state.connection}

@@ -11,7 +11,7 @@ import { PrivateInfoPanel } from "@/features/game/PrivateInfoPanel";
 import { view } from "../support/view";
 
 afterEach(() => {
-  audioManager.setSettings({ enabled: true, volume: 0.4 });
+  audioManager.setSettings({ enabled: true, volume: 0.8 });
   localStorage.clear();
 });
 

@@ -22,15 +22,19 @@ export function SoundControls() {
       >
         {settings.enabled ? "Tắt âm thanh" : "Bật âm thanh"}
       </button>
-      <label>
-        Âm lượng
+      <label className="sound-volume">
+        <span className="sound-volume-heading">
+          Âm lượng
+          <span aria-hidden="true">{Math.round(settings.volume * 100)}%</span>
+        </span>
         <input
           type="range"
           min="0"
           max="100"
-          step="5"
+          step="1"
           value={Math.round(settings.volume * 100)}
           aria-label="Âm lượng hiệu ứng"
+          aria-valuetext={`${Math.round(settings.volume * 100)}%`}
           onChange={(event) =>
             audioManager.setSettings({
               volume: Number(event.target.value) / 100,
